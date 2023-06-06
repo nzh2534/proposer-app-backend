@@ -1,0 +1,11 @@
+{% extends "rest_framework/base.html" %}
+
+{% block userlinks %}
+    {% if user.is_authenticated %}
+        {{ block.super }}
+        <li><a style="color: white" href="http://127.0.0.1:8000/schema/">Schema</a></li>
+        <li><a style="color: white" href="http://127.0.0.1:8000/docs/">Docs</a></li>
+    {% else %}
+        {{ block.super }}
+    {% endif %}
+{% endblock %}
