@@ -51,12 +51,11 @@ INSTALLED_APPS = [
     'proposals',
     'rest_framework_simplejwt.token_blacklist',
     'drf_yasg',
+    'storages',
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    "whitenoise.middleware.WhiteNoiseMiddleware",
-    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.security.SecurityMiddleware','django.contrib.sessions.middleware.SessionMiddleware',
     "corsheaders.middleware.CorsMiddleware",
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -65,7 +64,21 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+#Boto3
+STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+#AWS
+AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
+AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
+AWS_STORAGE_BUCKET_NAME = os.environ['AWS_STORAGE_BUCKET_NAME']
+AWS_DEFAULT_ACL = 'public-read'
+AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
+# Path prefix that will be prepended to all uploads
+AWS_LOCATION = 'static'
+STATIC_URL = f"{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
+
+#Django Static Files Directory
+STATICFILES_DIR = os.path.join(BASE_DIR, 'static')
+
 
 ROOT_URLCONF = 'fhphome.urls'
 
@@ -134,7 +147,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
 
 # STATIC_URL = 'static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
 
 # CORS_ORIGIN_ALLOW_ALL = True #any website has access to my api
 CORS_ALLOWED_ORIGINS = [
