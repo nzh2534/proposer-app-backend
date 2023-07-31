@@ -45,6 +45,8 @@ class ProposalSerializer(serializers.ModelSerializer):
             'nofo',
             'proposal_link',
             'proposal_id',
+            'checklist',
+            'toc'
         ]
 
     def get_edit_url(self, obj):

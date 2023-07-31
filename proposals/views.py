@@ -3,14 +3,32 @@ from rest_framework import generics, mixins
 from .models import Proposal, ComplianceImages
 from .serializers import ProposalSerializer, ComplianceImagesSerializer
 
-from api.mixins import StaffEditorPermissionMixin
+# from api.mixins import StaffEditorPermissionMixin
 
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from django.shortcuts import get_object_or_404
+# from rest_framework.decorators import api_view
+# from rest_framework.response import Response
+# from django.shortcuts import get_object_or_404
 
-from django.conf import settings
-from proposals.compliance_tool_lp import compliance_tool
+# from django.conf import settings
+# from .compliance_tool_lp import compliance_tool
+
+# from redis import Redis
+# # from rq import Queue
+
+# import django_rq
+
+# def redis_queue(nofo,pk):
+#     r = Redis('localhost', 6379)
+#     print(r)
+#     q = Queue(connection=r)
+#     print(q)
+#     q.enqueue("app.proposals.compliance_tool_lp.compliance_tool",
+#                     kwargs={
+#                         'file_path': nofo, 
+#                         'pk': pk
+#                         },
+#                     job_id='model_job')
+
 
 class ProposalListCreateAPIView(
     # StaffEditorPermissionMixin,
@@ -49,25 +67,34 @@ class ProposalUpdateAPIView(
     # permission_classes = [permissions.IsAdminUser,IsStaffEditorPermission] #Removed bc of Mixin
     lookup_field = 'pk'
 
-    def perform_update(self, serializer):
-        instance = serializer.save()
-        if not instance.description:
-            instance.description = instance.title
-        if instance.nofo != '':
-            if len(list(instance.complianceimages_set.all())) == 0:
-                result = compliance_tool(instance.nofo, instance.pk)
-                index = 0
-                proposal = Proposal.objects.get(pk=instance.pk)
-                for i in result[0]:
-                    new_ci = ComplianceImages(
-                        proposal=proposal,title=(settings.MEDIA_ROOT + i),
-                        content=(settings.MEDIA_ROOT + result[1][index]),
-                        title_text=result[2][index],
-                        content_text=result[3][index],
-                        page_number=result[4][index]
-                        )
-                    new_ci.save()
-                    index += 1
+    # def perform_update(self, serializer):
+    #     instance = serializer.save()
+    #     if not instance.description:
+    #         instance.description = instance.title
+    #     if instance.nofo != '':
+    #         if len(list(instance.complianceimages_set.all())) == 0:
+    #             r = Redis('localhost', 6379)
+    #             print(r)
+    #             queue = django_rq.get_queue('default', connection=r)
+    #             print(queue)
+    #             queue.enqueue(compliance_tool, file_path=instance.nofo, pk=instance.pk)
+    #             print(queue)
+    #             # redis_queue(instance.nofo, instance.pk)
+    #             # print(job.get_status())
+    #             # result = compliance_tool(instance.nofo, instance.pk)
+    #             # index = 0
+    #             # proposal = Proposal.objects.get(pk=instance.pk)
+    #             # for i in result[0]:
+    #             #     new_ci = ComplianceImages(
+    #             #         proposal=proposal,
+    #             #         title=(i),
+    #             #         content=(result[1][index]),
+    #             #         title_text=result[2][index],
+    #             #         content_text=result[3][index],
+    #             #         page_number=result[4][index]
+    #             #         )
+    #             #     new_ci.save()
+    #             #     index += 1
 
 class ProposalDestroyAPIView(
     # StaffEditorPermissionMixin,

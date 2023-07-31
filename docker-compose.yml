@@ -1,0 +1,24 @@
+services:
+  django:
+    image: proposer:v1
+    build: .
+    ports:
+      - "8000:8000"
+    container_name: django
+    volumes:
+      - .:/app/
+    depends_on:
+      - redis
+  celery:
+        image: proposer:v1
+        depends_on:
+            - redis
+        command: celery -A fhphome worker -l info --without-gossip --without-mingle --without-heartbeat -Ofair --pool=solo
+        links:
+            - redis
+  redis:
+    image: redis:latest
+    # ports:
+    #   - "6379:6379"
+    # volumes:
+    #   - ./redis:/redis
