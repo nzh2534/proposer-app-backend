@@ -51,6 +51,5 @@ urlpatterns = [
     path('api/logout/blacklist/', views.BlacklistTokenUpdateView.as_view(), name='blacklist'),
     path('schema/', schema_view.without_ui(cache_timeout=0), name='schema-json'),
     path('docs/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
-    
-
+    path("django-rq/", include("django_rq.urls"))
 ]
