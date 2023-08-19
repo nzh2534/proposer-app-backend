@@ -24,6 +24,15 @@ session = boto3.Session(
 s3_client = session.client('s3')
 s3_resource = session.resource('s3')
 
+cfg = get_cfg()
+cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))
+cfg.MODEL.DEVICE = "cpu"
+cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.3 # Set threshold for this model
+cfg.MODEL.WEIGHTS = os.getcwd() + "/proposals/model_final.pth" #os.environ['AWS_MODEL_PATH'] # Set path model .pth
+cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
+print("loading model")
+predictor = DefaultPredictor(cfg)
+
 gc.enable()
 
 def add_import(a, b):
@@ -77,16 +86,7 @@ def compliance_tool(file_path, pk, Proposal, ComplianceImages, toc_page):
     index = toc_page
     image_dict = {}
 
-    cfg = get_cfg()
-    cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))
-    cfg.MODEL.DEVICE = "cpu"
-    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.3 # Set threshold for this model
-    cfg.MODEL.WEIGHTS = os.getcwd() + "/proposals/model_final.pth" #os.environ['AWS_MODEL_PATH'] # Set path model .pth
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
-    print("loading model")
-    predictor = DefaultPredictor(cfg)
-
-    del cfg
+    #del cfg
     gc.collect()
     print("model loaded")
 
@@ -120,7 +120,8 @@ def compliance_tool(file_path, pk, Proposal, ComplianceImages, toc_page):
         gc.collect()
         index += 1
 
-    del predictor, mat
+    # del predictor
+    del mat
     gc.collect()
 
     index = 0
@@ -167,11 +168,11 @@ def compliance_tool(file_path, pk, Proposal, ComplianceImages, toc_page):
 
         text_blocks = lp.Layout(ordered_tb_list)
 
-        if len(image_dict) == 0:
-            try:
-                image_dict[0] = {'Title': 'Initial','Contents': [to_pil(new_tb(0,0,pix.width,text_blocks[0].block.y_1 - 1.5),img)], 'Page':index}
-            except:
-                image_dict[0] = {'Title': 'Initial','Contents': [to_pil(new_tb(0,0,pix.width,pix.height),img)],'Page':index}
+        # if len(image_dict) == 0:
+        #     try:
+        #         image_dict[0] = {'Title': 'Initial','Contents': [to_pil(new_tb(0,0,pix.width,text_blocks[0].block.y_1 - 1.5),img)], 'Page':index + toc_page}
+        #     except:
+        #         image_dict[0] = {'Title': 'Initial','Contents': [to_pil(new_tb(0,0,pix.width,pix.height),img)],'Page':index + toc_page}
 
         if len(text_blocks) == 0:
             image_dict[list(image_dict)[-1]]['Contents'].append(to_pil(new_tb(0,0,pix.width,pix.height),img))
@@ -182,11 +183,11 @@ def compliance_tool(file_path, pk, Proposal, ComplianceImages, toc_page):
             for block in text_blocks:
                 try:
                     contents = [to_pil(new_tb(0,block.block.y_2 + 2,pix.width,text_blocks[title_order + 1].block.y_1 - 1.5),img)]
-                    image_dict[len(image_dict)] = {'Title': to_pil(block,img), 'Contents': contents, 'Page':index}
+                    image_dict[len(image_dict)] = {'Title': to_pil(block,img), 'Contents': contents, 'Page':index + toc_page}
                     title_order += 1
                 except:
                     contents = [to_pil(new_tb(0,block.block.y_1,pix.width,pix.height),img)]
-                    image_dict[len(image_dict)] = {'Title': to_pil(block,img), 'Contents': contents, 'Page':index}
+                    image_dict[len(image_dict)] = {'Title': to_pil(block,img), 'Contents': contents, 'Page':index + toc_page}
                     title_order += 1
             
         index += 1
@@ -195,11 +196,11 @@ def compliance_tool(file_path, pk, Proposal, ComplianceImages, toc_page):
     del outputs_list, order_list, ordered_tb_list, text_blocks
     gc.collect()
 
-    title_list = []
-    title_text = []
-    content_list = []
-    content_text = []
-    page_number = []
+    title_list = [] #title image
+    title_text = [] #ocr'd title text
+    content_list = [] #content image
+    content_text = [] #ocr'd content text
+    page_number = [] #int
 
     ocr_agent = ocr.TesseractAgent(languages='eng')
 
@@ -218,14 +219,14 @@ def compliance_tool(file_path, pk, Proposal, ComplianceImages, toc_page):
         content_list.append(base_img)
         content_text.append(ocr_agent.detect(base_img))
         print("green")
-        if i == 0:
-            title_list.append(base_img)
-            title_text.append("Overview")
-            page_number.append(image_dict[i]['Page'] + 1)
-        else:
-            title_list.append(image_dict[i]['Title'])
-            title_text.append(ocr_agent.detect(image_dict[i]['Title']))
-            page_number.append(image_dict[i]['Page'] + 1)
+        # if i == 0:
+        #     title_list.append(base_img)
+        #     title_text.append("Overview")
+        #     page_number.append(image_dict[i]['Page'] + 1)
+        # else:
+        title_list.append(image_dict[i]['Title'])
+        title_text.append(ocr_agent.detect(image_dict[i]['Title']))
+        page_number.append(image_dict[i]['Page'] + 1)
 
     del image_dict
     gc.collect()

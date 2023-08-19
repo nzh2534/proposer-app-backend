@@ -11,6 +11,7 @@ RUN set -ex \
     && pip install --upgrade pip \
     && pip install --no-cache-dir -r /app/requirements.txt \
     && pip install layoutparser \
+    # && pip install memray \
     && pip install https://download.pytorch.org/whl/cpu/torch-2.0.0%2Bcpu-cp39-cp39-linux_x86_64.whl \
     && pip install https://download.pytorch.org/whl/cpu/torchvision-0.15.0%2Bcpu-cp39-cp39-linux_x86_64.whl \
     && pip install "detectron2@git+https://github.com/facebookresearch/detectron2.git@v0.5#egg=detectron2"
@@ -21,8 +22,10 @@ ADD . .
 
 # ENV PYTHONPATH "${PYTHONPATH}:/app/"
 
-CMD gunicorn fhphome.wsgi:application --timeout 5000 --bind 0.0.0.0:$PORT
+CMD gunicorn fhphome.wsgi:application --workers 2 --timeout 5000 --bind 0.0.0.0:$PORT
 
 # EXPOSE 8000
 
-# CMD ["gunicorn", "--bind", ":8000", "--workers", "3", "--timeout", "5000", "fhphome.wsgi:application"]
+# CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+
+#["gunicorn", "--bind", ":8000", "--workers", "3", "--timeout", "5000", "fhphome.wsgi:application"]
