@@ -8,7 +8,7 @@ from django.db.models.signals import(
     post_save
 )
 
-from .compliance_tool import compliance_tool
+from .compliance_tool import ComplianceTool
 
 DONOR_CHOICES = (
     ('USAID','USAID'),
@@ -192,10 +192,10 @@ class ComplianceImages(models.Model):
         return reverse("proposals:proposals-detail", kwargs={"pk": self.pk})
 
 @receiver(post_save, sender=Proposal)
-def user_created_handler(sender, instance, *args, **kwargs):
+def proposal_created_handler(sender, instance, *args, **kwargs):
     if instance.nofo != '':
         if len(list(instance.complianceimages_set.all())) == 0:
-            compliance_tool(instance.nofo, instance.pk, Proposal, ComplianceImages, instance.toc)
+            ComplianceTool().run(instance)
             # print("enqueuing")
             # compliance_fxn.delay(instance.nofo, instance.pk, Proposal, ComplianceImages)
             # print("done")
