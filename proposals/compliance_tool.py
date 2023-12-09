@@ -1,12 +1,11 @@
 import numpy as np
-import layoutparser as lp
 import fitz
 from PIL import Image
 import layoutparser.ocr as ocr
 import boto3
-import io
 import os
 import gc
+import io
 
 from botocore.exceptions import ClientError, WaiterError
 
@@ -32,6 +31,8 @@ cfg.MODEL.WEIGHTS = os.getcwd() + "/proposals/model_final.pth" #os.environ['AWS_
 cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
 print("loading model")
 predictor = DefaultPredictor(cfg)
+ocr_agent = ocr.TesseractAgent(languages='eng')
+print("model loaded")
 
 gc.enable()
 
@@ -47,28 +48,33 @@ def upload_src(src, filename, bucketName):
     try:
         bucket = s3_resource.Bucket(bucketName)
     except ClientError as e:
+        print(e)
         bucket = None
 
     try:
         head = s3_client.head_object(Bucket=bucketName, Key=filename)
-    except ClientError:
+    except ClientError as e:
+        print(e)
         etag = ''
     else:
         etag = head['ETag'].strip('"')
 
     try:
         s3_obj = bucket.Object(filename)
-    except (ClientError, AttributeError):
+    except (ClientError, AttributeError) as e:
+        print(e)
         s3_obj = None
 
     try:
         s3_obj.upload_fileobj(src, ExtraArgs={'ACL':'public-read'})
-    except (ClientError, AttributeError):
+    except (ClientError, AttributeError) as e:
+        print(e)
         pass
     else:
         try:
             s3_obj.wait_until_exists(IfNoneMatch=etag)
         except WaiterError as e:
+            print(e)
             pass
         else:
             head = s3_client.head_object(Bucket=bucketName, Key=filename)
@@ -84,21 +90,6 @@ def compliance_tool(file_path, pk, Proposal, ComplianceImages, toc_page):
     gc.collect()
 
     index = toc_page
-    image_dict = {}
-
-    #del cfg
-    gc.collect()
-    print("model loaded")
-
-    def to_pil(tb, img):
-        segment_image = (tb
-                        .pad(left=15, right=15, top=5, bottom=5)
-                        .crop_image(img))
-
-        return Image.fromarray(segment_image)
-
-    def new_tb(x_1,y_1,x_2,y_2):
-        return lp.TextBlock(block=lp.Rectangle(x_1=x_1, y_1=y_1, x_2=x_2, y_2=y_2))
 
     pages = int(os.environ['PAGE_COUNT'])
     if pages == 0:
@@ -108,27 +99,22 @@ def compliance_tool(file_path, pk, Proposal, ComplianceImages, toc_page):
     zoom_y = 1.5
     mat = fitz.Matrix(zoom_x, zoom_y)
 
-    outputs_list = []
+    previous_content = 0
+    title_count = 0
+    title_names = [] 
+    content_names = [] 
+    title_text = []
+    content_text = []
+    page_number = []
     while index < pages:
         print(index)
         pix = doc.load_page(index).get_pixmap(matrix=mat)
         mode = "RGBA" if pix.alpha else "RGB"
-        img = np.array(Image.frombytes(mode, [pix.width, pix.height], pix.samples))
+        base_img = Image.frombytes(mode, [pix.width, pix.height], pix.samples)
+        img = np.array(base_img)
         prediction = predictor(img)
-        outputs_list.append([prediction, pix, img])
-        del pix, img, mode
-        gc.collect()
-        index += 1
 
-    # del predictor
-    del mat
-    gc.collect()
-
-    index = 0
-    for o in outputs_list:
-        outputs = o[0]
-        pix = o[1]
-        img = o[2]
+        outputs = prediction
         tb_list = []
 
         outputs_filtered = outputs['instances'][outputs['instances'].scores > 0.84]
@@ -156,108 +142,127 @@ def compliance_tool(file_path, pk, Proposal, ComplianceImages, toc_page):
             line_num += 1
         
         for i in lines_list:
-            tb_list.append(new_tb(i[0],i[1],i[2],i[3]))
+            tb_list.append([i[0],i[1],i[2],i[3]])
 
-        order_list = sorted([b.block.y_1 for b in tb_list]) 
+        order_list = sorted([b[1] for b in tb_list]) 
 
         ordered_tb_list = []
         for y in order_list:
             for tb in tb_list:
-                if tb.block.y_1 == y:
+                if tb[1] == y:
                     ordered_tb_list.append(tb)
 
-        text_blocks = lp.Layout(ordered_tb_list)
+        print("done with TB list")
+        if len(ordered_tb_list) != 0:
+            for i in ordered_tb_list:
+                pred_index = ordered_tb_list.index(i)
+                if ordered_tb_list.index(i) == 0 and previous_content != 0:
+                    print("f_1")
+                    final_content = base_img.crop((0,0,pix.width,i[1]))
+                    print("f_2")
+                    blank_content = Image.new("RGB", (pix.width, previous_content.height + final_content.height), "white")
+                    print("f_3")
+                    blank_content.paste(previous_content,(0,0))
+                    print("f_4")
+                    blank_content.paste(final_content, (0,previous_content.height))
 
-        # if len(image_dict) == 0:
-        #     try:
-        #         image_dict[0] = {'Title': 'Initial','Contents': [to_pil(new_tb(0,0,pix.width,text_blocks[0].block.y_1 - 1.5),img)], 'Page':index + toc_page}
-        #     except:
-        #         image_dict[0] = {'Title': 'Initial','Contents': [to_pil(new_tb(0,0,pix.width,pix.height),img)],'Page':index + toc_page}
+                    title_name = str(pk) + "_" + str(title_count) + "_" + "title.jpg"
+                    content_name = str(pk) + "_" + str(title_count) + "_" + "content.jpg"
+                    
+                    print("f_5")
+                    in_mem_file = io.BytesIO()
+                    previous_title.save(in_mem_file, format="PNG")
+                    in_mem_file.seek(0)
+                    upload_src(in_mem_file, "media/" + title_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
 
-        if len(text_blocks) == 0:
-            image_dict[list(image_dict)[-1]]['Contents'].append(to_pil(new_tb(0,0,pix.width,pix.height),img))
+                    in_mem_file = io.BytesIO()
+                    blank_content.save(in_mem_file, format="PNG")
+                    in_mem_file.seek(0)
+                    upload_src(in_mem_file, "media/" + content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
+
+                    print("f_6")
+                    title_names.append(title_name)
+                    content_names.append(content_name)
+                    title_text.append(ocr_agent.detect(previous_title))
+                    content_text.append(ocr_agent.detect(blank_content))
+                    page_number.append(index)
+
+                    title_count += 1
+
+                if pred_index + 1 != len(ordered_tb_list):
+                    print("a_1")
+                    i2 = ordered_tb_list[pred_index + 1]
+                    print("a_2")
+                    title = base_img.crop((i[0]-15,i[1]-5,i[2]+15,i[3]+5))
+                    print("a_3")
+                    try:
+                        content = base_img.crop((0,i[3],pix.width,i2[1]))
+                    except:
+                        content = base_img.crop((0,i[1]-5,pix.width,i[3]+5))
+
+                    title_name = str(pk) + "_" + str(title_count) + "_" + "title.jpg"
+                    content_name = str(pk) + "_" + str(title_count) + "_" + "content.jpg"
+
+                    print("a_4")
+
+                    in_mem_file = io.BytesIO()
+                    title.save(in_mem_file, format="PNG")
+                    in_mem_file.seek(0)
+                    upload_src(in_mem_file, "media/" + title_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
+
+                    in_mem_file = io.BytesIO()
+                    content.save(in_mem_file, format="PNG")
+                    in_mem_file.seek(0)
+                    upload_src(in_mem_file, "media/" + content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
+
+                    print("a_5")
+                    title_names.append(title_name)
+                    content_names.append(content_name)
+                    title_text.append(ocr_agent.detect(title))
+                    content_text.append(ocr_agent.detect(content))
+                    page_number.append(index)
+
+                    title_count += 1
+                else:
+                    print("b_1")
+                    previous_title = base_img.crop((i[0]-15,i[1]-5,i[2]+15,i[3]+5))
+                    previous_content = base_img.crop((0,i[3],pix.width,pix.height))
         else:
-            title_order = 0
-            if len(image_dict) > 1:
-                image_dict[list(image_dict)[-1]]['Contents'].append(to_pil(new_tb(0,0,pix.width,text_blocks[0].block.y_1 - 1.5),img))
-            for block in text_blocks:
-                try:
-                    contents = [to_pil(new_tb(0,block.block.y_2 + 2,pix.width,text_blocks[title_order + 1].block.y_1 - 1.5),img)]
-                    image_dict[len(image_dict)] = {'Title': to_pil(block,img), 'Contents': contents, 'Page':index + toc_page}
-                    title_order += 1
-                except:
-                    contents = [to_pil(new_tb(0,block.block.y_1,pix.width,pix.height),img)]
-                    image_dict[len(image_dict)] = {'Title': to_pil(block,img), 'Contents': contents, 'Page':index + toc_page}
-                    title_order += 1
+            if title_count != 0:
+                print("c_1")
+                blank_content = Image.new("RGB", (pix.width, previous_content.height + pix.height), "white")
+                blank_content.paste(previous_content,(0,0))
+                blank_content.paste(base_img, (0,previous_content.height))
+                previous_content = blank_content
             
         index += 1
 
-    print("loop ended")
-    del outputs_list, order_list, ordered_tb_list, text_blocks
-    gc.collect()
+    # ---- For end of the document -----
+    print("x_1")
+    final_content = base_img.crop((0,0,pix.width,i[1]))
+    blank_content = Image.new("RGB", (pix.width, previous_content.height + final_content.height), "white")
+    blank_content.paste(previous_content,(0,0))
+    blank_content.paste(final_content, (0,previous_content.height))
 
-    title_list = [] #title image
-    title_text = [] #ocr'd title text
-    content_list = [] #content image
-    content_text = [] #ocr'd content text
-    page_number = [] #int
+    title_name = str(pk) + "_" + str(title_count) + "_" + "title.jpg"
+    content_name = str(pk) + "_" + str(title_count) + "_" + "content.jpg"
 
-    ocr_agent = ocr.TesseractAgent(languages='eng')
+    print("x_2")
+    in_mem_file = io.BytesIO()
+    previous_title.save(in_mem_file, format="PNG")
+    in_mem_file.seek(0)
+    upload_src(in_mem_file, "media/" + title_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
 
-    for i in image_dict:
-        height = 0
-        for c in image_dict[i]['Contents']:
-            height += c.height
-        base_img = Image.new("RGB", (pix.width, height), "white")
-        print("made base")
-        content_y = 0
-        for c in image_dict[i]['Contents']:
-            base_img.paste(c, (0, content_y))
-            content_y += c.height
+    in_mem_file = io.BytesIO()
+    blank_content.save(in_mem_file, format="PNG")
+    in_mem_file.seek(0)
+    upload_src(in_mem_file, "media/" + content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
 
-        print("red")
-        content_list.append(base_img)
-        content_text.append(ocr_agent.detect(base_img))
-        print("green")
-        # if i == 0:
-        #     title_list.append(base_img)
-        #     title_text.append("Overview")
-        #     page_number.append(image_dict[i]['Page'] + 1)
-        # else:
-        title_list.append(image_dict[i]['Title'])
-        title_text.append(ocr_agent.detect(image_dict[i]['Title']))
-        page_number.append(image_dict[i]['Page'] + 1)
-
-    del image_dict
-    gc.collect()
-
-    print("purple")
-    name_count = 0
-    title_names = []
-    content_names = []
-    for i in title_list:
-        title_name = str(pk) + "_" + str(name_count) + "_" + "title.jpg"
-        content_name = str(pk) + "_" + str(name_count) + "_" + "content.jpg"
-
-        # Save the image to an in-memory file
-        in_mem_file = io.BytesIO()
-        i.save(in_mem_file, format=i.format)
-        in_mem_file.seek(0)
-        print("sumpin")
-        upload_src(in_mem_file, "media/" + title_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
-        print("more")
-        title_names.append(title_name)
-
-        in_mem_file = io.BytesIO()
-        content_list[name_count].save(in_mem_file, format=content_list[name_count].format)
-        in_mem_file.seek(0)
-        upload_src(in_mem_file, "media/" + content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
-        content_names.append(content_name)
-
-        name_count += 1
-
-    del title_list
-    gc.collect()
+    title_names.append(title_name)
+    content_names.append(content_name)
+    title_text.append(ocr_agent.detect(previous_title))
+    content_text.append(ocr_agent.detect(blank_content))
+    page_number.append(index)
 
     result = [title_names, content_names, title_text, content_text, page_number]
     index = 0
@@ -277,7 +282,7 @@ def compliance_tool(file_path, pk, Proposal, ComplianceImages, toc_page):
         print("saved")
         index += 1
 
-    del result, title_names, content_names, title_text, content_text, page_number, ocr_agent, Proposal, ComplianceImages
+    del result, title_names, content_names, title_text, content_text, page_number, Proposal, ComplianceImages
     gc.collect()
 
     return "DONE"
