@@ -22,7 +22,7 @@ ADD . .
 
 # ENV PYTHONPATH "${PYTHONPATH}:/app/"
 
-CMD gunicorn fhphome.wsgi:application --workers 2 --timeout 5000 --bind 0.0.0.0:$PORT
+CMD gunicorn fhphome.wsgi:application --timeout 5000 --bind 0.0.0.0:$PORT
 
 # EXPOSE 8000
 
