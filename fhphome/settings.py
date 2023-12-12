@@ -14,11 +14,11 @@ from pathlib import Path
 from datetime import timedelta
 import os
 from dotenv import load_dotenv, find_dotenv
-import django_heroku
+# import django_heroku
 
-from storages.backends.s3boto3 import S3Boto3Storage
+# from storages.backends.s3boto3 import S3Boto3Storage
 
-import dj_database_url
+# import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -33,16 +33,16 @@ load_dotenv(find_dotenv())
 SECRET_KEY = os.environ['SECRET_KEY']
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
 
 # Boto3
-STATICFILES_STORAGE = 'fhphome.storage_backends.StaticStorage'
+# STATICFILES_STORAGE = 'fhphome.storage_backends.StaticStorage'
 # AWS
-AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
-AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
+# # AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
+# # AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
 AWS_STORAGE_BUCKET_NAME = os.environ['AWS_STORAGE_BUCKET_NAME']
 AWS_DEFAULT_ACL = 'public-read'
 AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
@@ -53,7 +53,7 @@ STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/'
 # s3 public media settings
 PUBLIC_MEDIA_LOCATION = 'media'
 MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{PUBLIC_MEDIA_LOCATION}/'
-DEFAULT_FILE_STORAGE = 'fhphome.storage_backends.PublicMediaStorage'
+# # DEFAULT_FILE_STORAGE = 'fhphome.storage_backends.PublicMediaStorage'
 
 # # Django Static Files Directory
 # STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'),)
@@ -73,8 +73,8 @@ INSTALLED_APPS = [
     'proposals',
     'rest_framework_simplejwt.token_blacklist',
     'drf_yasg',
-    'storages',
-    "django_rq",
+    'storages'
+    # "django_rq",
 ]
 
 MIDDLEWARE = [
@@ -87,7 +87,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-
 
 ROOT_URLCONF = 'fhphome.urls'
 
@@ -109,10 +108,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'fhphome.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/4.0/ref/settings/#databases
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -120,8 +115,8 @@ DATABASES = {
     }
 }
 
-db_from_env = dj_database_url.config(conn_max_age=600)
-DATABASES['default'].update(db_from_env)
+# db_from_env = dj_database_url.config(conn_max_age=600)
+# DATABASES['default'].update(db_from_env)
 
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
@@ -153,20 +148,19 @@ USE_I18N = True
 
 USE_TZ = True
 
-RQ_SHOW_ADMIN_LINK = True
-RQ_QUEUES = {
-    "default": {"HOST": "redis-1", "PORT": 6379, "DEFAULT_TIMEOUT": 5000,},
-}
+# RQ_SHOW_ADMIN_LINK = True
+# RQ_QUEUES = {
+#     "default": {"HOST": "redis-1", "PORT": 6379, "DEFAULT_TIMEOUT": 5000,},
+# }
 
 
-CELERY_BROKER_URL = os.environ.get("CELERY_BROKER", "redis://redis:6379/0")
-CELERY_RESULT_BACKEND = os.environ.get("CELERY_BROKER", "redis://redis:6379/0")
+# CELERY_BROKER_URL = os.environ.get("CELERY_BROKER", "redis://redis:6379/0")
+# CELERY_RESULT_BACKEND = os.environ.get("CELERY_BROKER", "redis://redis:6379/0")
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
 
-# STATIC_URL = 'static/'
-
+STATIC_URL = 'static/'
 
 # CORS_ORIGIN_ALLOW_ALL = True #any website has access to my api
 CORS_ALLOWED_ORIGINS = [
