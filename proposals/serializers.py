@@ -5,6 +5,7 @@ from .models import Proposal, Event, ComplianceImages
 from . import validators
 
 from .compliance_tool import splitter_tool
+from django.conf import settings
 
 import json
 
@@ -22,7 +23,7 @@ class ComplianceImagesSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         obj = ComplianceImages.objects.filter(proposal=validated_data['proposal'], id=validated_data['id']).first()
 
-        proposal = validated_data['content_text'] = splitter_tool(
+        new_obj = validated_data['content_text'] = splitter_tool(
             boxes= json.loads(self.__dict__['initial_data']['boxes']),
             obj = obj,
             ComplianceImages=ComplianceImages,
@@ -30,15 +31,16 @@ class ComplianceImagesSerializer(serializers.ModelSerializer):
             baseId = str(self.__dict__['initial_data']['baseId'])
         )
 
+        validated_data['title'] = new_obj['title']
+        validated_data['title_text'] = new_obj['title_text']
+        validated_data['content'] = new_obj['content']
+        validated_data['content_text'] = new_obj['content_text']
+
         obj.delete()
 
-        try:
-            new_set = list(ComplianceImages.objects.filter(proposal=proposal))
-        except Exception as e:
-            new_set = []
-            print(e)
+        instance = super().create(validated_data)
 
-        return new_set
+        return instance
 
 class ProposalSerializer(serializers.ModelSerializer):
     event_set = EventSerializer(many=True, read_only=True)

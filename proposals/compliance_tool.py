@@ -273,7 +273,7 @@ def compliance_tool(file_path, pk, Proposal, ComplianceImages, toc_page):
 
 
 def splitter_tool(boxes, obj, ComplianceImages, Proposal, baseId):
-    
+
     content_path= settings.MEDIA_URL + str(obj.content.file)
     title_path = settings.MEDIA_URL + str(obj.title.file)
     content_name= str(obj.content.file)
@@ -297,30 +297,30 @@ def splitter_tool(boxes, obj, ComplianceImages, Proposal, baseId):
 
             response = requests.get(title_path)
             img_title = Image.open(io.BytesIO(response.content))
-            title_name = str(pk) + "_" + baseId + "_" + "title.jpg"
+            new_title_name = str(pk) + "_" + baseId + "_" + "title.jpg"
             in_mem_file = io.BytesIO()
             img_title.save(in_mem_file, format="PNG")
             in_mem_file.seek(0)
-            upload_src(in_mem_file, "media/" + title_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
+            upload_src(in_mem_file, "media/" + new_title_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
 
-            content_name = str(pk) + "_" + baseId + "_" + "content.jpg"
+            new_content_name = str(pk) + "_" + baseId + "_" + "content.jpg"
             in_mem_file = io.BytesIO()
             update_content.save(in_mem_file, format="PNG")
             in_mem_file.seek(0)
-            upload_src(in_mem_file, "media/" + content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
+            upload_src(in_mem_file, "media/" + new_content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
 
-            updated_title = ocr_agent.detect(img_title)
-            updated_text = ocr_agent.detect(update_content)
+            updated_title_text = ocr_agent.detect(img_title)
+            updated_content_text = ocr_agent.detect(update_content)
 
-            new_ci = ComplianceImages(
-                proposal=proposal,
-                title=title_name,
-                content=content_name,
-                title_text=updated_title,
-                content_text=updated_text,
-                page_number=page_number
-            )
-            new_ci.save()
+            # new_ci = ComplianceImages(
+            #     proposal=proposal,
+            #     title=title_name,
+            #     content=content_name,
+            #     title_text=updated_title,
+            #     content_text=updated_text,
+            #     page_number=page_number
+            # )
+            # new_ci.save()
 
         x1 = box['start']['x']
         y1 = box['start']['y']
@@ -365,4 +365,8 @@ def splitter_tool(boxes, obj, ComplianceImages, Proposal, baseId):
         )
         new_ci.save()
     
-    return proposal
+    return {
+        "title_text": updated_title_text, 
+        "content_text": updated_content_text, 
+        "title": new_title_name, 
+        "content": new_content_name}
