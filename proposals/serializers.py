@@ -4,6 +4,10 @@ from rest_framework.reverse import reverse #make a Ex: f"/api/v2/proposals/{obk.
 from .models import Proposal, Event, ComplianceImages
 from . import validators
 
+from .compliance_tool import splitter_tool
+
+import json
+
 class EventSerializer(serializers.ModelSerializer):
     class Meta:
         model = Event
@@ -14,6 +18,27 @@ class ComplianceImagesSerializer(serializers.ModelSerializer):
     class Meta:
         model = ComplianceImages
         fields = ['id','proposal','title','content','title_text','content_text', 'page_number', 'flagged']
+
+    def create(self, validated_data):
+        obj = ComplianceImages.objects.filter(proposal=validated_data['proposal'], id=validated_data['id']).first()
+
+        proposal = validated_data['content_text'] = splitter_tool(
+            boxes= json.loads(self.__dict__['initial_data']['boxes']),
+            obj = obj,
+            ComplianceImages=ComplianceImages,
+            Proposal=Proposal,
+            baseId = str(self.__dict__['initial_data']['baseId'])
+        )
+
+        obj.delete()
+
+        try:
+            new_set = list(ComplianceImages.objects.filter(proposal=proposal))
+        except Exception as e:
+            new_set = []
+            print(e)
+
+        return new_set
 
 class ProposalSerializer(serializers.ModelSerializer):
     event_set = EventSerializer(many=True, read_only=True)

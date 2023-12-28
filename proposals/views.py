@@ -107,7 +107,12 @@ class ProposalDestroyAPIView(
     def perform_destroy(self, instance):
         super().perform_destroy(instance)
 
+class ComplianceListCreateAPIView(
+    # StaffEditorPermissionMixin,
+    generics.ListCreateAPIView):
 
+    queryset = ComplianceImages.objects.all()
+    serializer_class = ComplianceImagesSerializer
 
 class ComplianceUpdateAPIView(
     # StaffEditorPermissionMixin,

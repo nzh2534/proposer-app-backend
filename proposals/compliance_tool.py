@@ -6,6 +6,7 @@ import boto3
 import os
 import gc
 import io
+import requests
 
 from botocore.exceptions import ClientError, WaiterError
 
@@ -15,6 +16,8 @@ setup_logger()
 from detectron2.config import get_cfg
 from detectron2.engine import DefaultPredictor
 from detectron2 import model_zoo
+
+from django.conf import settings
 
 session = boto3.Session(
     aws_access_key_id= os.environ['AWS_ACCESS_KEY_ID'],
@@ -44,21 +47,11 @@ def add_import(a, b):
 
 def upload_src(src, filename, bucketName):
     success = False
-
     try:
         bucket = s3_resource.Bucket(bucketName)
     except ClientError as e:
         print(e)
         bucket = None
-
-    try:
-        head = s3_client.head_object(Bucket=bucketName, Key=filename)
-    except ClientError as e:
-        print(e)
-        etag = ''
-    else:
-        etag = head['ETag'].strip('"')
-
     try:
         s3_obj = bucket.Object(filename)
     except (ClientError, AttributeError) as e:
@@ -70,15 +63,6 @@ def upload_src(src, filename, bucketName):
     except (ClientError, AttributeError) as e:
         print(e)
         pass
-    else:
-        try:
-            s3_obj.wait_until_exists(IfNoneMatch=etag)
-        except WaiterError as e:
-            print(e)
-            pass
-        else:
-            head = s3_client.head_object(Bucket=bucketName, Key=filename)
-            success = head['ContentLength']
 
     return success
 
@@ -286,3 +270,99 @@ def compliance_tool(file_path, pk, Proposal, ComplianceImages, toc_page):
     gc.collect()
 
     return "DONE"
+
+
+def splitter_tool(boxes, obj, ComplianceImages, Proposal, baseId):
+    
+    content_path= settings.MEDIA_URL + str(obj.content.file)
+    title_path = settings.MEDIA_URL + str(obj.title.file)
+    content_name= str(obj.content.file)
+    pk=obj.proposal.pk
+    page_number = int(obj.page_number)
+
+    proposal = Proposal.objects.get(pk=pk)
+    response = requests.get(content_path)
+    img = Image.open(io.BytesIO(response.content))
+    for box in boxes:
+        index = boxes.index(box)
+        if index == 0:
+            # Update Previous Content
+            width = img.width
+            x1 = box['start']['x']
+            y1 = box['start']['y']
+            x2 = box['end']['x']
+            y2 = box['end']['y']
+
+            update_content = img.crop((0,0,width,y1))
+
+            response = requests.get(title_path)
+            img_title = Image.open(io.BytesIO(response.content))
+            title_name = str(pk) + "_" + baseId + "_" + "title.jpg"
+            in_mem_file = io.BytesIO()
+            img_title.save(in_mem_file, format="PNG")
+            in_mem_file.seek(0)
+            upload_src(in_mem_file, "media/" + title_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
+
+            content_name = str(pk) + "_" + baseId + "_" + "content.jpg"
+            in_mem_file = io.BytesIO()
+            update_content.save(in_mem_file, format="PNG")
+            in_mem_file.seek(0)
+            upload_src(in_mem_file, "media/" + content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
+
+            updated_title = ocr_agent.detect(img_title)
+            updated_text = ocr_agent.detect(update_content)
+
+            new_ci = ComplianceImages(
+                proposal=proposal,
+                title=title_name,
+                content=content_name,
+                title_text=updated_title,
+                content_text=updated_text,
+                page_number=page_number
+            )
+            new_ci.save()
+
+        x1 = box['start']['x']
+        y1 = box['start']['y']
+        x2 = box['end']['x']
+        y2 = box['end']['y']
+        id = box['id']
+
+        if index + 1 < len(boxes):
+            print('g')
+            y3 = boxes[index + 1]['start']['y']
+        else:
+            print('h')
+            y3 = img.height
+
+        print(y2)
+        print(y3)
+        title = img.crop((x1,y1,x2,y2))
+        content = img.crop((0,y2,width,y3))
+
+        title_name = str(pk) + "_" + id + "_" + "title.jpg"
+        in_mem_file = io.BytesIO()
+        title.save(in_mem_file, format="PNG")
+        in_mem_file.seek(0)
+        upload_src(in_mem_file, "media/" + title_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
+
+        content_name = str(pk) + "_" + id + "_" + "content.jpg"
+        in_mem_file = io.BytesIO()
+        content.save(in_mem_file, format="PNG")
+        in_mem_file.seek(0)
+        upload_src(in_mem_file, "media/" + content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
+
+        title_text = ocr_agent.detect(title)
+        content_text = ocr_agent.detect(content)
+
+        new_ci = ComplianceImages(
+            proposal=proposal,
+            title=title_name,
+            content=content_name,
+            title_text=title_text,
+            content_text=content_text,
+            page_number=page_number
+        )
+        new_ci.save()
+    
+    return proposal
