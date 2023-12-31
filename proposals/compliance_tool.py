@@ -6,8 +6,9 @@ import boto3
 import os
 import gc
 import io
+import requests
 
-from botocore.exceptions import ClientError, WaiterError
+from botocore.exceptions import ClientError
 
 from detectron2.utils.logger import setup_logger
 setup_logger()
@@ -15,6 +16,8 @@ setup_logger()
 from detectron2.config import get_cfg
 from detectron2.engine import DefaultPredictor
 from detectron2 import model_zoo
+
+from django.conf import settings
 
 session = boto3.Session(
     aws_access_key_id= os.environ['AWS_ACCESS_KEY_ID'],
@@ -44,21 +47,11 @@ def add_import(a, b):
 
 def upload_src(src, filename, bucketName):
     success = False
-
     try:
         bucket = s3_resource.Bucket(bucketName)
     except ClientError as e:
         print(e)
         bucket = None
-
-    try:
-        head = s3_client.head_object(Bucket=bucketName, Key=filename)
-    except ClientError as e:
-        print(e)
-        etag = ''
-    else:
-        etag = head['ETag'].strip('"')
-
     try:
         s3_obj = bucket.Object(filename)
     except (ClientError, AttributeError) as e:
@@ -70,17 +63,16 @@ def upload_src(src, filename, bucketName):
     except (ClientError, AttributeError) as e:
         print(e)
         pass
-    else:
-        try:
-            s3_obj.wait_until_exists(IfNoneMatch=etag)
-        except WaiterError as e:
-            print(e)
-            pass
-        else:
-            head = s3_client.head_object(Bucket=bucketName, Key=filename)
-            success = head['ContentLength']
 
     return success
+
+def image_to_inmemory_and_s3 (id, pk, img, suffix):
+    new_file_name = str(pk) + "_" + id + "_" + suffix
+    in_mem_file = io.BytesIO()
+    img.save(in_mem_file, format="PNG")
+    in_mem_file.seek(0)
+    upload_src(in_mem_file, "media/" + new_file_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
+    return new_file_name
 
 def compliance_tool(file_path, pk, Proposal, ComplianceImages, toc_page):
     print("getting images")
@@ -286,3 +278,85 @@ def compliance_tool(file_path, pk, Proposal, ComplianceImages, toc_page):
     gc.collect()
 
     return "DONE"
+
+def splitter_tool(boxes, obj, ComplianceImages, Proposal, baseId):
+    '''Takes as input (1) x box coordinates, (2) the ComplianceImage obj/image that the box coordinates reference,
+    (3) the ComplianceImages Django Model object, (4) the Proposal Django Model object, and (5) the base heirarchy id
+    of the image that the box coordinates reference
+    '''
+
+    content_path= settings.MEDIA_URL + str(obj.content.file)
+    title_path = settings.MEDIA_URL + str(obj.title.file)
+    content_name= str(obj.content.file)
+    pk=obj.proposal.pk
+    page_number = int(obj.page_number)
+
+    proposal = Proposal.objects.get(pk=pk)
+
+    #The base img that the box coordinates reference
+    img = Image.open(io.BytesIO(requests.get(content_path).content))
+
+    for index, box in enumerate(boxes):
+
+        # This IF statement updates the ComplianceImage obj/image that the box coordinates reference
+        # The old is removed an a new ComplianceImage obj is saved below to S3 and then saved in Django
+        # after splitter_tool has ran in serializers.py
+        if index == 0:
+            width = img.width
+            x1 = box['start']['x']
+            y1 = box['start']['y']
+            x2 = box['end']['x']
+            y2 = box['end']['y']
+
+            updated_content = img.crop((0,0,width,y1))
+
+            response = requests.get(title_path)
+            title_img = Image.open(io.BytesIO(response.content))
+
+            new_title_name = image_to_inmemory_and_s3(baseId, str(pk), title_img, 'title.jpg')
+            new_content_name = image_to_inmemory_and_s3(baseId, str(pk), updated_content, 'content.jpg')
+
+            updated_title_text = ocr_agent.detect(title_img)
+            updated_content_text = ocr_agent.detect(updated_content)
+
+        # A new ComplianceImage obj is saved to Django backend and S3 for each box provided in boxes var
+        # after index 0
+        x1 = box['start']['x']
+        y1 = box['start']['y']
+        x2 = box['end']['x']
+        y2 = box['end']['y']
+        id = box['id']
+
+        if index + 1 < len(boxes):
+            print('g')
+            y3 = boxes[index + 1]['start']['y']
+        else:
+            print('h')
+            y3 = img.height
+
+        print(y2)
+        print(y3)
+        title = img.crop((x1,y1,x2,y2))
+        content = img.crop((0,y2,width,y3))
+
+        title_name = image_to_inmemory_and_s3(id, str(pk), title, "title.jpg")
+        content_name = image_to_inmemory_and_s3(id, str(pk), content, "content.jpg")
+
+        title_text = ocr_agent.detect(title)
+        content_text = ocr_agent.detect(content)
+
+        new_ci = ComplianceImages(
+            proposal=proposal,
+            title=title_name,
+            content=content_name,
+            title_text=title_text,
+            content_text=content_text,
+            page_number=page_number
+        )
+        new_ci.save()
+    
+    return {
+        "title_text": updated_title_text, 
+        "content_text": updated_content_text, 
+        "title": new_title_name, 
+        "content": new_content_name}

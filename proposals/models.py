@@ -5,10 +5,21 @@ from django.conf import settings
 
 from django.dispatch import receiver
 from django.db.models.signals import(
-    post_save
+    post_save,
+    post_delete
 )
 
 from .compliance_tool import compliance_tool
+
+import boto3
+import os
+
+session = boto3.Session(
+    aws_access_key_id= os.environ['AWS_ACCESS_KEY_ID'],
+    aws_secret_access_key= os.environ['AWS_SECRET_ACCESS_KEY'],
+    )
+s3_client = session.client('s3')
+s3_resource = session.resource('s3')
 
 DONOR_CHOICES = (
     ('USAID','USAID'),
@@ -134,14 +145,9 @@ def jsonfield_default_value():  # This is a callable
     ]
     base_list = []
     index = 1
-    for i in items_list:
+    for index, i in enumerate(items_list):
         base_list.append({"item": i, "id": index, "data":"", 'pages':""})
-        index += 1
-    # base_list = [
-    #     {"item": "Cost Share", "id": 1, "data":"", 'pages':""},
-    #     {"item": "Technical Application Format", "id": 2, "data":"", 'pages':""},
-    #     {"item": "Objectives", "id": 3, "data":"", 'pages':""}
-    #     ]   
+        index += 1  
     return base_list  # Any serializable Python obj, e.g. `["A", "B"]` or `{"price": 0}`
 
 class Proposal(models.Model):
@@ -163,12 +169,6 @@ class Proposal(models.Model):
 
     def get_absolute_url(self):
         return reverse("proposals:proposals-detail", kwargs={"pk": self.pk})
-
-    # def set_compliance(self, x):
-    #     self.compliance = json.dumps(x)
-
-    # def get_compliance(self):
-    #     return json.loads(self.compliance)
 
 class Event(models.Model):
     proposal = models.ForeignKey(Proposal, on_delete=models.CASCADE)
@@ -196,21 +196,15 @@ def user_created_handler(sender, instance, *args, **kwargs):
     if instance.nofo != '':
         if len(list(instance.complianceimages_set.all())) == 0:
             compliance_tool(instance.nofo, instance.pk, Proposal, ComplianceImages, instance.toc)
-            # print("enqueuing")
-            # compliance_fxn.delay(instance.nofo, instance.pk, Proposal, ComplianceImages)
-            # print("done")
-#             result = compliance_tool(instance.nofo, instance.pk)
-#             index = 0
-#             proposal = Proposal.objects.get(pk=instance.pk)
-#             for i in result[0]:
-#                 new_ci = ComplianceImages(
-#                     proposal=proposal,title=(settings.MEDIA_ROOT + i),
-#                     content=(settings.MEDIA_ROOT + result[1][index]),
-#                     title_text=result[2][index],
-#                     content_text=result[3][index],
-#                     page_number=result[4][index]
-#                     )
-#                 new_ci.save()
-#                 index += 1
-        # instance.compliance = result[0]
-        # instance.word_analysis = result[1]
+            
+@receiver(post_delete, sender=ComplianceImages)
+def remove_file_from_s3(sender, instance, *args, **kwargs):
+    print(f"deleting {instance.title.file}")
+    s3_client.delete_object(
+        Bucket=os.environ['AWS_STORAGE_BUCKET_NAME'],
+        Key=f"media/{str(instance.title.file)}"
+    )
+    s3_client.delete_object(
+        Bucket=os.environ['AWS_STORAGE_BUCKET_NAME'],
+        Key=f"media/{str(instance.content.file)}"
+    )

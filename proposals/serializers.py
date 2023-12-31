@@ -4,6 +4,11 @@ from rest_framework.reverse import reverse #make a Ex: f"/api/v2/proposals/{obk.
 from .models import Proposal, Event, ComplianceImages
 from . import validators
 
+from .compliance_tool import splitter_tool
+from django.conf import settings
+
+import json
+
 class EventSerializer(serializers.ModelSerializer):
     class Meta:
         model = Event
@@ -14,6 +19,29 @@ class ComplianceImagesSerializer(serializers.ModelSerializer):
     class Meta:
         model = ComplianceImages
         fields = ['id','proposal','title','content','title_text','content_text', 'page_number', 'flagged']
+
+    def create(self, validated_data):
+        obj = ComplianceImages.objects.filter(proposal=validated_data['proposal'], id=validated_data['id']).first()
+
+        new_obj = splitter_tool(
+            boxes= json.loads(self.__dict__['initial_data']['boxes']),
+            obj = obj,
+            ComplianceImages=ComplianceImages,
+            Proposal=Proposal,
+            baseId = str(self.__dict__['initial_data']['baseId'])
+        )
+
+        validated_data['title'] = new_obj['title']
+        validated_data['title_text'] = new_obj['title_text']
+        validated_data['content'] = new_obj['content']
+        validated_data['content_text'] = new_obj['content_text']
+        validated_data['page_number'] = obj.__dict__['page_number']
+
+        obj.delete()
+
+        instance = super().create(validated_data)
+
+        return instance
 
 class ProposalSerializer(serializers.ModelSerializer):
     event_set = EventSerializer(many=True, read_only=True)
