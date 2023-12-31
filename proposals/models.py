@@ -144,10 +144,8 @@ def jsonfield_default_value():  # This is a callable
         'Reps and Certs',
     ]
     base_list = []
-    index = 1
     for index, i in enumerate(items_list):
         base_list.append({"item": i, "id": index, "data":"", 'pages':""})
-        index += 1  
     return base_list  # Any serializable Python obj, e.g. `["A", "B"]` or `{"price": 0}`
 
 class Proposal(models.Model):
