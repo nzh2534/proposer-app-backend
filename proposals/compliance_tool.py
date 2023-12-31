@@ -296,8 +296,7 @@ def splitter_tool(boxes, obj, ComplianceImages, Proposal, baseId):
     #The base img that the box coordinates reference
     img = Image.open(io.BytesIO(requests.get(content_path).content))
 
-    for box in boxes:
-        index = boxes.index(box)
+    for index, box in enumerate(boxes):
 
         # This IF statement updates the ComplianceImage obj/image that the box coordinates reference
         # The old is removed an a new ComplianceImage obj is saved below to S3 and then saved in Django
