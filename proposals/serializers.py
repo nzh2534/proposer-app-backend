@@ -23,7 +23,7 @@ class ComplianceImagesSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         obj = ComplianceImages.objects.filter(proposal=validated_data['proposal'], id=validated_data['id']).first()
 
-        new_obj = validated_data['content_text'] = splitter_tool(
+        new_obj = splitter_tool(
             boxes= json.loads(self.__dict__['initial_data']['boxes']),
             obj = obj,
             ComplianceImages=ComplianceImages,
@@ -35,6 +35,7 @@ class ComplianceImagesSerializer(serializers.ModelSerializer):
         validated_data['title_text'] = new_obj['title_text']
         validated_data['content'] = new_obj['content']
         validated_data['content_text'] = new_obj['content_text']
+        validated_data['page_number'] = obj.__dict__['page_number']
 
         obj.delete()
 
