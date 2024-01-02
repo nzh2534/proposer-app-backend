@@ -9,5 +9,5 @@ run:
     image: web
   worker: 
     command:
-      - celery worker --app=fhphome.celery --pool=solo -l info
+      - celery -A fhphome worker --pool=solo -l info
     image: worker
