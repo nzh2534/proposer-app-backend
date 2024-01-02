@@ -1,23 +1,24 @@
 services:
   django:
-    image: proposer:v5
+    image: proposer:latest
     build: .
-    # ports:
-    #   - "8000:8000"
+    ports:
+      - "8000:8000"
     container_name: django
     volumes:
       - .:/app/
     depends_on:
       - ampq
   celery:
-    image: proposer:v5
+    image: proposer:latest
     command: python -m celery -A fhphome worker --pool=solo -l info
     depends_on:
         - ampq
-#   ampq:
-#     image: rabbitmq
-#     volumes:
-#       - ./ampq:/ampq
-#     environment:
-#       - RABBITMQ_DEFAULT_USER=admin
-#       - RABBITMQ_DEFAULT_PASS=pass
+  ampq:
+    #Get the official RabbitMQ image here --> https://hub.docker.com/_/rabbitmq
+    image: rabbitmq
+    volumes:
+      - ./ampq:/ampq
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=pass
