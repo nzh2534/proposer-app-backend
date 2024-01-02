@@ -61,7 +61,7 @@ def image_to_inmemory_and_s3 (id, pk, img, suffix):
     return new_file_name
 
 def compliance_tool(file_path, pk, toc_page, proposal):
-    from .models import Proposal, ComplianceImages
+    from .models import ComplianceImages
     from detectron2.config import get_cfg
     from detectron2.engine import DefaultPredictor
     from detectron2 import model_zoo
@@ -69,7 +69,7 @@ def compliance_tool(file_path, pk, toc_page, proposal):
     cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))
     cfg.MODEL.DEVICE = "cpu"
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.3 # Set threshold for this model
-    cfg.MODEL.WEIGHTS = os.getcwd() + "/proposals/model_final.pth" #os.environ['AWS_MODEL_PATH'] # Set path model .pth
+    cfg.MODEL.WEIGHTS = os.environ['AWS_MODEL_PATH'] #os.getcwd() + "/proposals/model_final.pth" #os.environ['AWS_MODEL_PATH'] # Set path model .pth
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
     print("loading model")
     predictor = DefaultPredictor(cfg)
