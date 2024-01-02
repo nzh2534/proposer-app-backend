@@ -1,6 +1,13 @@
 build:
   docker:
     web: Dockerfile
+    worker: Dockerfile
 run:
-  web: gunicorn fhphome.wsgi:application --timeout 5000 --bind 0.0.0.0:$PORT
-  worker: python -m celery -A fhphome worker --pool=solo -l info
+  web: 
+    command:
+      - gunicorn fhphome.wsgi:application --timeout 5000 --bind 0.0.0.0:$PORT
+    image: web
+  worker: 
+    command:
+      - celery worker --app=fhphome.celery --pool=solo -l info
+    image: worker

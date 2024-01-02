@@ -22,7 +22,7 @@ ADD . .
 
 # ENV PYTHONPATH "${PYTHONPATH}:/app/"
 
-CMD gunicorn fhphome.wsgi:application --timeout 5000 --bind 0.0.0.0:$PORT
+CMD gunicorn fhphome.wsgi:application --timeout 5000 --bind 0.0.0.0:$PORT && python -m celery -A fhphome worker --pool=solo -l info
 
 # EXPOSE 8000
 
