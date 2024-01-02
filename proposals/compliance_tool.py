@@ -10,6 +10,7 @@ import requests
 
 from botocore.exceptions import ClientError
 
+# -- Only needed for Detectron2 testing/logs
 # from detectron2.utils.logger import setup_logger
 # setup_logger()
 
@@ -69,15 +70,12 @@ def compliance_tool(file_path, pk, toc_page, proposal):
     cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))
     cfg.MODEL.DEVICE = "cpu"
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.3 # Set threshold for this model
-    cfg.MODEL.WEIGHTS = os.environ['AWS_MODEL_PATH'] #os.getcwd() + "/proposals/model_final.pth" #os.environ['AWS_MODEL_PATH'] # Set path model .pth
+    cfg.MODEL.WEIGHTS = os.environ['AWS_MODEL_PATH'] # Set path model .pth
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
     print("loading model")
     predictor = DefaultPredictor(cfg)
     ocr_agent = ocr.TesseractAgent(languages='eng')
     print("model loaded")
-
-    # proposal = Proposal.objects.get(pk=pk)
-    # print(proposal)
 
     res = requests.get(settings.MEDIA_URL + file_path)
     print("getting images")
