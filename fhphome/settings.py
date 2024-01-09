@@ -18,7 +18,7 @@ from dotenv import load_dotenv, find_dotenv
 
 # from storages.backends.s3boto3 import S3Boto3Storage
 
-# import dj_database_url
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -73,7 +73,8 @@ INSTALLED_APPS = [
     'proposals',
     'rest_framework_simplejwt.token_blacklist',
     'drf_yasg',
-    'storages'
+    'storages',
+    'celery'
     # "django_rq",
 ]
 
@@ -115,8 +116,8 @@ DATABASES = {
     }
 }
 
-# db_from_env = dj_database_url.config(conn_max_age=600)
-# DATABASES['default'].update(db_from_env)
+db_from_env = dj_database_url.config(conn_max_age=600)
+DATABASES['default'].update(db_from_env)
 
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators

@@ -9,7 +9,9 @@ from django.db.models.signals import(
     post_delete
 )
 
-from .compliance_tool import compliance_tool
+# from .compliance_tool import compliance_tool
+from .tasks import compliance_task
+from django.db import transaction
 
 import boto3
 import os
@@ -193,7 +195,7 @@ class ComplianceImages(models.Model):
 def user_created_handler(sender, instance, *args, **kwargs):
     if instance.nofo != '':
         if len(list(instance.complianceimages_set.all())) == 0:
-            compliance_tool(instance.nofo, instance.pk, Proposal, ComplianceImages, instance.toc)
+            transaction.on_commit(lambda: compliance_task.delay(str(instance.nofo.file), instance.pk, instance.toc))
             
 @receiver(post_delete, sender=ComplianceImages)
 def remove_file_from_s3(sender, instance, *args, **kwargs):

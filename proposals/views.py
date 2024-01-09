@@ -3,32 +3,6 @@ from rest_framework import generics, mixins
 from .models import Proposal, ComplianceImages
 from .serializers import ProposalSerializer, ComplianceImagesSerializer
 
-# from api.mixins import StaffEditorPermissionMixin
-
-# from rest_framework.decorators import api_view
-# from rest_framework.response import Response
-# from django.shortcuts import get_object_or_404
-
-# from django.conf import settings
-# from .compliance_tool_lp import compliance_tool
-
-# from redis import Redis
-# # from rq import Queue
-
-# import django_rq
-
-# def redis_queue(nofo,pk):
-#     r = Redis('localhost', 6379)
-#     print(r)
-#     q = Queue(connection=r)
-#     print(q)
-#     q.enqueue("app.proposals.compliance_tool_lp.compliance_tool",
-#                     kwargs={
-#                         'file_path': nofo, 
-#                         'pk': pk
-#                         },
-#                     job_id='model_job')
-
 
 class ProposalListCreateAPIView(
     # StaffEditorPermissionMixin,

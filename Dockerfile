@@ -22,10 +22,9 @@ ADD . .
 
 # ENV PYTHONPATH "${PYTHONPATH}:/app/"
 
+# -- Use this commands when deploying to Heroku --
 CMD gunicorn fhphome.wsgi:application --timeout 5000 --bind 0.0.0.0:$PORT
 
+# -- Use these commands when building/testing Image locally --
 # EXPOSE 8000
-
 # CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
-
-# ["gunicorn", "--bind", ":8000", "--workers", "3", "--timeout", "5000", "fhphome.wsgi:application"]
