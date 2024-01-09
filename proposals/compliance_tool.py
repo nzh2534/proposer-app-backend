@@ -230,7 +230,7 @@ def compliance_tool(file_path, pk, toc_page, proposal):
                 else:
                     print("b_1")
                     previous_title = base_img.crop((i[0]-15,i[1]-5,i[2]+15,i[3]+5))
-                    previous_content = base_img.crop((0,i[3],pix.width,pix.height))
+                    previous_content = base_img.crop((0,i[1],pix.width,pix.height))
         else:
             if title_count != 0:
                 print("c_1")
@@ -286,7 +286,7 @@ def compliance_tool(file_path, pk, toc_page, proposal):
         print("saved")
         index += 1
 
-    del result, title_names, content_names, title_text, content_text, page_number, Proposal, ComplianceImages
+    del result, title_names, content_names, title_text, content_text, page_number, ComplianceImages
     gc.collect()
 
     return "DONE"
