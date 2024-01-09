@@ -10,12 +10,9 @@ import requests
 
 from botocore.exceptions import ClientError
 
-from detectron2.utils.logger import setup_logger
-setup_logger()
-
-from detectron2.config import get_cfg
-from detectron2.engine import DefaultPredictor
-from detectron2 import model_zoo
+# -- Only needed for Detectron2 testing/logs
+# from detectron2.utils.logger import setup_logger
+# setup_logger()
 
 from django.conf import settings
 
@@ -26,16 +23,6 @@ session = boto3.Session(
 s3_client = session.client('s3')
 s3_resource = session.resource('s3')
 
-cfg = get_cfg()
-cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))
-cfg.MODEL.DEVICE = "cpu"
-cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.3 # Set threshold for this model
-cfg.MODEL.WEIGHTS = os.getcwd() + "/proposals/model_final.pth" #os.environ['AWS_MODEL_PATH'] # Set path model .pth
-cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
-print("loading model")
-predictor = DefaultPredictor(cfg)
-ocr_agent = ocr.TesseractAgent(languages='eng')
-print("model loaded")
 
 gc.enable()
 
@@ -74,9 +61,29 @@ def image_to_inmemory_and_s3 (id, pk, img, suffix):
     upload_src(in_mem_file, "media/" + new_file_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
     return new_file_name
 
-def compliance_tool(file_path, pk, Proposal, ComplianceImages, toc_page):
+def compliance_tool(file_path, pk, toc_page, proposal):
+    from .models import ComplianceImages
+    from detectron2.config import get_cfg
+    from detectron2.engine import DefaultPredictor
+    from detectron2 import model_zoo
+    cfg = get_cfg()
+    cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))
+    cfg.MODEL.DEVICE = "cpu"
+    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.3 # Set threshold for this model
+    cfg.MODEL.WEIGHTS = os.environ['AWS_MODEL_PATH'] # Set path model .pth
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
+    print("loading model")
+    predictor = DefaultPredictor(cfg)
+    ocr_agent = ocr.TesseractAgent(languages='eng')
+    print("model loaded")
+
+    res = requests.get(settings.MEDIA_URL + file_path)
     print("getting images")
-    doc = fitz.open(stream=file_path.read(), filetype="pdf")
+    try:
+        doc = fitz.open(stream=res.content, filetype="pdf")
+    except Exception as e:
+        print(e)
+        doc = fitz.open(stream=res.content.read(), filetype="pdf")
 
     del file_path
     gc.collect()
@@ -101,10 +108,15 @@ def compliance_tool(file_path, pk, Proposal, ComplianceImages, toc_page):
     while index < pages:
         print(index)
         pix = doc.load_page(index).get_pixmap(matrix=mat)
+        print("a")
         mode = "RGBA" if pix.alpha else "RGB"
+        print("b")
         base_img = Image.frombytes(mode, [pix.width, pix.height], pix.samples)
+        print("c")
         img = np.array(base_img)
+        print("d")
         prediction = predictor(img)
+        print("e")
 
         outputs = prediction
         tb_list = []
@@ -188,7 +200,7 @@ def compliance_tool(file_path, pk, Proposal, ComplianceImages, toc_page):
                     title = base_img.crop((i[0]-15,i[1]-5,i[2]+15,i[3]+5))
                     print("a_3")
                     try:
-                        content = base_img.crop((0,i[3],pix.width,i2[1]))
+                        content = base_img.crop((0,i[1]-5,pix.width,i2[1]))
                     except:
                         content = base_img.crop((0,i[1]-5,pix.width,i[3]+5))
 
@@ -218,7 +230,7 @@ def compliance_tool(file_path, pk, Proposal, ComplianceImages, toc_page):
                 else:
                     print("b_1")
                     previous_title = base_img.crop((i[0]-15,i[1]-5,i[2]+15,i[3]+5))
-                    previous_content = base_img.crop((0,i[3],pix.width,pix.height))
+                    previous_content = base_img.crop((0,i[1]-5,pix.width,pix.height))
         else:
             if title_count != 0:
                 print("c_1")
@@ -258,7 +270,7 @@ def compliance_tool(file_path, pk, Proposal, ComplianceImages, toc_page):
 
     result = [title_names, content_names, title_text, content_text, page_number]
     index = 0
-    proposal = Proposal.objects.get(pk=pk)
+
     for i in result[0]:
         print("obj call")
         new_ci = ComplianceImages(
@@ -290,6 +302,7 @@ def splitter_tool(boxes, obj, ComplianceImages, Proposal, baseId):
     content_name= str(obj.content.file)
     pk=obj.proposal.pk
     page_number = int(obj.page_number)
+    ocr_agent = ocr.TesseractAgent(languages='eng')
 
     proposal = Proposal.objects.get(pk=pk)
 
