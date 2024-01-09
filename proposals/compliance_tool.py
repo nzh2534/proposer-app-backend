@@ -350,7 +350,7 @@ def splitter_tool(boxes, obj, ComplianceImages, Proposal, baseId):
         print(y2)
         print(y3)
         title = img.crop((x1,y1,x2,y2))
-        content = img.crop((0,y2,width,y3))
+        content = img.crop((0,y1,width,y3))
 
         title_name = image_to_inmemory_and_s3(id, str(pk), title, "title.jpg")
         content_name = image_to_inmemory_and_s3(id, str(pk), content, "content.jpg")
