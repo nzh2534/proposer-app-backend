@@ -200,7 +200,7 @@ def compliance_tool(file_path, pk, toc_page, proposal):
                     title = base_img.crop((i[0]-15,i[1]-5,i[2]+15,i[3]+5))
                     print("a_3")
                     try:
-                        content = base_img.crop((0,i[3],pix.width,i2[1]))
+                        content = base_img.crop((0,i[1]-5,pix.width,i2[1]))
                     except:
                         content = base_img.crop((0,i[1]-5,pix.width,i[3]+5))
 
@@ -230,7 +230,7 @@ def compliance_tool(file_path, pk, toc_page, proposal):
                 else:
                     print("b_1")
                     previous_title = base_img.crop((i[0]-15,i[1]-5,i[2]+15,i[3]+5))
-                    previous_content = base_img.crop((0,i[3],pix.width,pix.height))
+                    previous_content = base_img.crop((0,i[1]-5,pix.width,pix.height))
         else:
             if title_count != 0:
                 print("c_1")
