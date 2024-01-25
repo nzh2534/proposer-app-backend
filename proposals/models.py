@@ -175,7 +175,7 @@ class ComplianceImages(models.Model):
 def user_created_handler(sender, instance, *args, **kwargs):
     if instance.nofo != '':
         if len(list(instance.complianceimages_set.all())) == 0:
-            transaction.on_commit(lambda: compliance_task(str(instance.nofo.file), instance.pk, instance.doc_start, instance.doc_end))
+            transaction.on_commit(lambda: compliance_task.delay(str(instance.nofo.file), instance.pk, instance.doc_start, instance.doc_end))
             
 
 @receiver(post_delete, sender=ComplianceImages)
