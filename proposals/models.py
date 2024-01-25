@@ -173,7 +173,7 @@ class ComplianceImages(models.Model):
 
 @receiver(post_save, sender=Proposal)
 def user_created_handler(sender, instance, *args, **kwargs):
-    if instance.nofo != '':
+    if (instance.nofo != '') and (instance.pages_ran == 0) :
         if len(list(instance.complianceimages_set.all())) == 0:
             transaction.on_commit(lambda: compliance_task.delay(str(instance.nofo.file), instance.pk, instance.doc_start, instance.doc_end))
             
