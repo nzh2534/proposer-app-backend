@@ -75,7 +75,6 @@ INSTALLED_APPS = [
     'drf_yasg',
     'storages',
     'celery'
-    # "django_rq",
 ]
 
 MIDDLEWARE = [
@@ -149,21 +148,11 @@ USE_I18N = True
 
 USE_TZ = True
 
-# RQ_SHOW_ADMIN_LINK = True
-# RQ_QUEUES = {
-#     "default": {"HOST": "redis-1", "PORT": 6379, "DEFAULT_TIMEOUT": 5000,},
-# }
-
-
-# CELERY_BROKER_URL = os.environ.get("CELERY_BROKER", "redis://redis:6379/0")
-# CELERY_RESULT_BACKEND = os.environ.get("CELERY_BROKER", "redis://redis:6379/0")
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
 
 STATIC_URL = 'static/'
 
-# CORS_ORIGIN_ALLOW_ALL = True #any website has access to my api
 CORS_ALLOWED_ORIGINS = [
     os.environ['CORS_ALLOWED_ORIGINS']
 ]

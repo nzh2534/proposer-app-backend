@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Proposal, Event, ComplianceImages
+from .models import Proposal, Event, ComplianceImages, Template
 
 class EventAdminInline(admin.TabularInline):
     model = Event
@@ -12,3 +12,4 @@ class ProposalAdmin(admin.ModelAdmin):
 
 # Register your models here.
 admin.site.register(Proposal, ProposalAdmin)
+admin.site.register(Template)

@@ -1,11 +1,12 @@
+from api import permissions
 from rest_framework import generics, mixins
 
-from .models import Proposal, ComplianceImages
-from .serializers import ProposalSerializer, ComplianceImagesSerializer
+from .models import Proposal, ComplianceImages, Template
+from .serializers import ProposalSerializer, ComplianceImagesSerializer, TemplateSerializer
 
 
 class ProposalListCreateAPIView(
-    # StaffEditorPermissionMixin,
+    permissions.AccessByCreatingUserPermission,
     generics.ListCreateAPIView):
 
     queryset = Proposal.objects.all()
@@ -25,7 +26,7 @@ class ProposalListCreateAPIView(
     #     return super().perform_create(serializer)
 
 class ProposalDetailAPIView(
-    # StaffEditorPermissionMixin,
+    permissions.AccessByCreatingUserPermission,
     generics.RetrieveAPIView):
 
     queryset = Proposal.objects.all()
@@ -33,7 +34,7 @@ class ProposalDetailAPIView(
     # lookup_field = 'pk' #like Proposal.objects.get()...
 
 class ProposalUpdateAPIView(
-    # StaffEditorPermissionMixin,
+    permissions.AccessByCreatingUserPermission,
     generics.UpdateAPIView):
 
     queryset = Proposal.objects.all()
@@ -71,7 +72,7 @@ class ProposalUpdateAPIView(
     #             #     index += 1
 
 class ProposalDestroyAPIView(
-    # StaffEditorPermissionMixin,
+    permissions.AccessByCreatingUserPermission,
     generics.DestroyAPIView):
 
     queryset = Proposal.objects.all()
@@ -82,14 +83,14 @@ class ProposalDestroyAPIView(
         super().perform_destroy(instance)
 
 class ComplianceListCreateAPIView(
-    # StaffEditorPermissionMixin,
+    permissions.AccessByCreatingUserPermission,
     generics.ListCreateAPIView):
 
     queryset = ComplianceImages.objects.all()
     serializer_class = ComplianceImagesSerializer
 
 class ComplianceUpdateAPIView(
-    # StaffEditorPermissionMixin,
+    permissions.AccessByCreatingUserPermission,
     generics.UpdateAPIView):
 
     queryset = ComplianceImages.objects.all()
@@ -103,7 +104,7 @@ class ComplianceUpdateAPIView(
         #     instance.description = instance.title
 
 class ComplianceDestroyAPIView(
-    # StaffEditorPermissionMixin,
+    permissions.AccessByCreatingUserPermission,
     generics.DestroyAPIView):
 
     queryset = ComplianceImages.objects.all()
@@ -165,3 +166,31 @@ class ComplianceDestroyAPIView(
 #             print(serializer.data)
 #             return Response(serializer.data)
 #         return Response({"invalid": "not good data"}, status=400)
+class TemplateListCreateAPIView(
+    permissions.AccessByCreatingUserPermission,
+    generics.ListCreateAPIView):
+
+    queryset = Template.objects.all()
+    serializer_class = TemplateSerializer
+
+class TemplateUpdateAPIView(
+    permissions.AccessByCreatingUserPermission,
+    generics.UpdateAPIView):
+
+    queryset = Template.objects.all()
+    serializer_class = TemplateSerializer
+    lookup_field = 'pk'
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+
+class TemplateDestroyAPIView(
+    permissions.AccessByCreatingUserPermission,
+    generics.DestroyAPIView):
+
+    queryset = Template.objects.all()
+    serializer_class = TemplateSerializer
+    lookup_field = 'pk'
+
+    def perform_destroy(self, instance):
+        super().perform_destroy(instance)

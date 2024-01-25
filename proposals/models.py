@@ -47,32 +47,6 @@ STATUS_CHOICES = (
     ('White Review','White Review'),
 )
 
-COUNTRY_CHOICES = (
-    ('Bangladesh','Bangladesh'),
-    ('Bolivia','Bolivia'),
-    ('Burundi', 'Burundi'),
-    ('Cambodia','Cambodia'),
-    ('Congo (Kinshasa)','Congo (Kinshasa)'),
-    ('Dominican Republic','Dominican Republic'),
-    ('Ethiopia','Ethiopia'),
-    ('Guatemala','Guatemala'),
-    ('Haiti','Haiti'),
-    ('Indonesia','Indonesia'),
-    ('Kenya','Kenya'),
-    ('Mozambique','Mozambique'),
-    ('Nicaragua','Nicaragua'),
-    ('Peru','Peru'),
-    ('Philippines','Philippines'),
-    ('Rwanda','Rwanda'),
-    ('South Sudan','South Sudan'),
-    ('Uganda','Uganda'),
-)
-
-ASSIGNED_CHOICES = (
-    ('Momodu','Momodu'),
-    ('Claude','Claude'),
-)
-
 COLOR_CHOICES = (
     ('white','white'),
     ('#F8F8F8','#F8F8F8'),
@@ -150,6 +124,9 @@ def jsonfield_default_value():  # This is a callable
         base_list.append({"item": i, "id": index, "data":"", 'pages':""})
     return base_list  # Any serializable Python obj, e.g. `["A", "B"]` or `{"price": 0}`
 
+def template_default_value():
+    return {"item": "", "id": 0, "data":"", 'pages':"", "prompt": ""}
+
 class Proposal(models.Model):
     #id = pk #by default "primary key"
     title = models.CharField(max_length=200)
@@ -158,13 +135,16 @@ class Proposal(models.Model):
     priority = models.CharField(max_length=200, choices=PRIORITY_CHOICES, default="Normal")
     status = models.CharField(max_length=200, choices=STATUS_CHOICES, default="Pre-Color Review")
     nofo = models.FileField(blank=True, null=True, default="")
-    country = models.CharField(max_length=200, blank=True, null=True, choices=COUNTRY_CHOICES)
-    assigned = models.CharField(max_length=200, choices=ASSIGNED_CHOICES, null=True)
+    assigned = models.CharField(max_length=200, null=True, blank=True, default="")
     compliance_sections = models.JSONField(blank=True, null=True, default=dict)
     proposal_link = models.CharField(max_length=500, null=True, blank=True, default="")
     proposal_id = models.CharField(max_length=500, null=True, blank=True, default="")
     checklist = models.JSONField(default=jsonfield_default_value)
-    toc = models.IntegerField(default=0)
+    doc_start = models.IntegerField(default=0)
+    doc_end = models.IntegerField(default=0)
+    pages_ran = models.IntegerField(default=0)
+    loading = models.BooleanField(default=False)
+
     # word_analysis = models.JSONField(blank=True, null=True, default=dict)
 
     def get_absolute_url(self):
@@ -195,8 +175,9 @@ class ComplianceImages(models.Model):
 def user_created_handler(sender, instance, *args, **kwargs):
     if instance.nofo != '':
         if len(list(instance.complianceimages_set.all())) == 0:
-            transaction.on_commit(lambda: compliance_task.delay(str(instance.nofo.file), instance.pk, instance.toc))
+            transaction.on_commit(lambda: compliance_task(str(instance.nofo.file), instance.pk, instance.doc_start, instance.doc_end))
             
+
 @receiver(post_delete, sender=ComplianceImages)
 def remove_file_from_s3(sender, instance, *args, **kwargs):
     print(f"deleting {instance.title.file}")
@@ -208,3 +189,8 @@ def remove_file_from_s3(sender, instance, *args, **kwargs):
         Bucket=os.environ['AWS_STORAGE_BUCKET_NAME'],
         Key=f"media/{str(instance.content.file)}"
     )
+
+class Template(models.Model):
+    #id = pk
+    name = models.CharField(max_length=200)
+    checklist = models.JSONField(default=template_default_value)

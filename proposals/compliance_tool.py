@@ -61,8 +61,8 @@ def image_to_inmemory_and_s3 (id, pk, img, suffix):
     upload_src(in_mem_file, "media/" + new_file_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
     return new_file_name
 
-def compliance_tool(file_path, pk, toc_page, proposal):
-    from .models import ComplianceImages
+def compliance_tool(file_path, pk, start_page, end_page):
+    from .models import ComplianceImages, Proposal
     from detectron2.config import get_cfg
     from detectron2.engine import DefaultPredictor
     from detectron2 import model_zoo
@@ -70,12 +70,13 @@ def compliance_tool(file_path, pk, toc_page, proposal):
     cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))
     cfg.MODEL.DEVICE = "cpu"
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.3 # Set threshold for this model
-    cfg.MODEL.WEIGHTS = os.environ['AWS_MODEL_PATH'] # Set path model .pth
+    cfg.MODEL.WEIGHTS = os.environ['AWS_MODEL_PATH']
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
     print("loading model")
     predictor = DefaultPredictor(cfg)
     ocr_agent = ocr.TesseractAgent(languages='eng')
     print("model loaded")
+    proposal = Proposal.objects.get(pk=pk)
 
     res = requests.get(settings.MEDIA_URL + file_path)
     print("getting images")
@@ -85,14 +86,13 @@ def compliance_tool(file_path, pk, toc_page, proposal):
         print(e)
         doc = fitz.open(stream=res.content.read(), filetype="pdf")
 
+
     del file_path
     gc.collect()
 
-    index = toc_page
+    index = start_page
 
-    pages = int(os.environ['PAGE_COUNT'])
-    if pages == 0:
-        pages = doc.page_count
+    pages = end_page
 
     zoom_x = 1.5
     zoom_y = 1.5
@@ -240,10 +240,11 @@ def compliance_tool(file_path, pk, toc_page, proposal):
                 previous_content = blank_content
             
         index += 1
+        Proposal.objects.filter(pk=pk).update(pages_ran=(index - start_page))
 
     # ---- For end of the document -----
     print("x_1")
-    final_content = base_img.crop((0,0,pix.width,i[1]))
+    final_content = base_img.crop((0,0,pix.width, i[1]))
     blank_content = Image.new("RGB", (pix.width, previous_content.height + final_content.height), "white")
     blank_content.paste(previous_content,(0,0))
     blank_content.paste(final_content, (0,previous_content.height))
@@ -286,7 +287,9 @@ def compliance_tool(file_path, pk, toc_page, proposal):
         print("saved")
         index += 1
 
-    del result, title_names, content_names, title_text, content_text, page_number, Proposal, ComplianceImages
+    Proposal.objects.filter(pk=pk).update(loading=False, pages_ran=(index - start_page + 1))
+
+    del result, title_names, content_names, title_text, content_text, page_number, ComplianceImages
     gc.collect()
 
     return "DONE"
@@ -373,3 +376,33 @@ def splitter_tool(boxes, obj, ComplianceImages, Proposal, baseId):
         "content_text": updated_content_text, 
         "title": new_title_name, 
         "content": new_content_name}
+
+def merge_tool(url1, url2, content_id, pk):
+    # Download images from URLs
+
+    url1 = settings.MEDIA_URL + url1
+    url2 = settings.MEDIA_URL + url2
+
+    image1 = Image.open(io.BytesIO(requests.get(url1).content))
+    image2 = Image.open(io.BytesIO(requests.get(url2).content))
+
+    # Ensure images have the same width
+    width = max(image1.width, image2.width)
+    image1 = image1.resize((width, int(image1.height * (width / image1.width))))
+    image2 = image2.resize((width, int(image2.height * (width / image2.width))))
+
+    # Create a new image with doubled height
+    merged_image = Image.new('RGB', (width, image1.height + image2.height))
+
+    # Paste the images vertically
+    merged_image.paste(image1, (0, 0))
+    merged_image.paste(image2, (0, image1.height))
+
+    content_name = str(pk) + "_" + str(content_id) + "_" + "content.jpg"
+
+    in_mem_file = io.BytesIO()
+    merged_image.save(in_mem_file, format="PNG")
+    in_mem_file.seek(0)
+    upload_src(in_mem_file, "media/" + content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
+
+    return merged_image
