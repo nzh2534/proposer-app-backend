@@ -10,8 +10,8 @@ from django.db.models.signals import(
 )
 
 # from .compliance_tool import compliance_tool
-from .tasks import compliance_task
-from django.db import transaction
+from .tasks import compliance_task, langchain_task
+# from django.db import transaction
 
 import boto3
 import os
@@ -125,7 +125,11 @@ def jsonfield_default_value():  # This is a callable
     return base_list  # Any serializable Python obj, e.g. `["A", "B"]` or `{"price": 0}`
 
 def template_default_value():
-    return {"item": "", "id": 0, "data":"", 'pages':"", "prompt": ""}
+    return [
+        {"item": "", "id": 0, "data":"", 'pages':"", "prompt": ""},
+        {"item": "", "id": 1, "data":"", 'pages':"", "prompt": ""},
+        {"item": "", "id": 2, "data":"", 'pages':"", "prompt": ""}
+        ]
 
 class Proposal(models.Model):
     #id = pk #by default "primary key"
@@ -139,7 +143,7 @@ class Proposal(models.Model):
     compliance_sections = models.JSONField(blank=True, null=True, default=dict)
     proposal_link = models.CharField(max_length=500, null=True, blank=True, default="")
     proposal_id = models.CharField(max_length=500, null=True, blank=True, default="")
-    checklist = models.JSONField(default=jsonfield_default_value)
+    checklist = models.JSONField(default=template_default_value)
     doc_start = models.IntegerField(default=0)
     doc_end = models.IntegerField(default=0)
     pages_ran = models.IntegerField(default=0)
@@ -173,9 +177,14 @@ class ComplianceImages(models.Model):
 
 @receiver(post_save, sender=Proposal)
 def user_created_handler(sender, instance, *args, **kwargs):
-    if (instance.nofo != '') and (instance.pages_ran == 0) :
+    if (instance.nofo != '') and (instance.pages_ran == 0):
         if len(list(instance.complianceimages_set.all())) == 0:
-            transaction.on_commit(lambda: compliance_task.delay(str(instance.nofo.file), instance.pk, instance.doc_start, instance.doc_end))
+            compliance_task.delay(str(instance.nofo.file), instance.pk, instance.doc_start, instance.doc_end)
+            print(instance.checklist)
+            print(instance.checklist[0]['prompt'])
+            if len(instance.checklist[0]['prompt']) > 0:
+                print("sending langchain")
+                langchain_task.delay(str(instance.nofo.file), instance.checklist, instance.pk)
             
 
 @receiver(post_delete, sender=ComplianceImages)

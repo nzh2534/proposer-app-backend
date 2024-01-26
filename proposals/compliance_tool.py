@@ -26,6 +26,14 @@ s3_resource = session.resource('s3')
 
 gc.enable()
 
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.vectorstores import Chroma
+from langchain.chains import ConversationalRetrievalChain
+from langchain.chat_models import ChatOpenAI
+from langchain.document_loaders import PyPDFLoader
+from tempfile import NamedTemporaryFile
+
+
 def add_import(a, b):
     print("adding")
     x = a + b
@@ -406,3 +414,45 @@ def merge_tool(url1, url2, content_id, pk):
     upload_src(in_mem_file, "media/" + content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
 
     return merged_image
+
+
+def langchain_api(url, template, pk):
+    print("starting langchain")
+    from .models import Proposal
+    response = requests.get(settings.MEDIA_URL + url)
+    mem_obj = io.BytesIO(response.content)
+
+    print("doc in mem")
+
+    bytes_data = mem_obj.read()
+    with NamedTemporaryFile(delete=False) as tmp:
+        tmp.write(bytes_data)                     
+        loader = PyPDFLoader(tmp.name).load()
+
+    print("doc loader")
+
+    os.remove(tmp.name)
+    embeddings = OpenAIEmbeddings()
+    pdfsearch = Chroma.from_documents(loader, embeddings,)
+
+    chain = ConversationalRetrievalChain.from_llm(ChatOpenAI(temperature=0.1), 
+                                                    retriever=
+                                                    pdfsearch.as_retriever(search_kwargs={"k": 1}),
+                                                    return_source_documents=True,)
+    
+    print("chain retrieved")
+    chat_history = []
+    for i in template:
+        query = i['prompt']
+        try:
+            result = chain({"question": query, 'chat_history':chat_history}, return_only_outputs=True)
+            chat_history += [(query, result["answer"])]
+            i['data'] = result["answer"]
+            i['page'] = list(result['source_documents'][0])[1][1]['page']
+        except Exception as e:
+            print(e)
+            continue
+
+    Proposal.objects.filter(pk=pk).update(checklist=template)
+    
+    return "DONE"
