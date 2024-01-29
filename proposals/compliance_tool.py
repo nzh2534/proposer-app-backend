@@ -27,11 +27,11 @@ s3_resource = session.resource('s3')
 gc.enable()
 
 from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import Chroma
 from langchain.chains import ConversationalRetrievalChain
 from langchain.chat_models import ChatOpenAI
 from langchain.document_loaders import PyPDFLoader
 from tempfile import NamedTemporaryFile
+from langchain.vectorstores.pinecone import Pinecone as PineconeStore
 
 
 def add_import(a, b):
@@ -433,7 +433,7 @@ def langchain_api(url, template, pk):
 
     os.remove(tmp.name)
     embeddings = OpenAIEmbeddings()
-    pdfsearch = Chroma.from_documents(loader, embeddings,)
+    pdfsearch = PineconeStore.from_documents(loader, embeddings, index_name="quickstart")
 
     chain = ConversationalRetrievalChain.from_llm(ChatOpenAI(temperature=0.1), 
                                                     retriever=
