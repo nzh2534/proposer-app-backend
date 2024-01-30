@@ -420,6 +420,7 @@ def merge_tool(url1, url2, content_id, pk):
 def langchain_api(url, template, pk):
     print("starting langchain")
     from .models import Proposal
+    Proposal.objects.filter(pk=pk).update(loading_checklist=True)
     response = requests.get(settings.MEDIA_URL + url)
     mem_obj = io.BytesIO(response.content)
 
@@ -463,7 +464,7 @@ def langchain_api(url, template, pk):
             print(e)
             continue
 
-    Proposal.objects.filter(pk=pk).update(checklist=template)
     pinecone.delete_index(index_name)
+    Proposal.objects.filter(pk=pk).update(checklist=template, loading_checklist=False)
     
     return "DONE"

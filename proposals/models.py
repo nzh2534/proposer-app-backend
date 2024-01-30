@@ -10,8 +10,7 @@ from django.db.models.signals import(
 )
 
 # from .compliance_tool import compliance_tool
-from .tasks import compliance_task
-from .compliance_tool import langchain_api
+from .tasks import compliance_task, langchain_task
 # from django.db import transaction
 
 import boto3
@@ -149,6 +148,7 @@ class Proposal(models.Model):
     doc_end = models.IntegerField(default=0)
     pages_ran = models.IntegerField(default=0)
     loading = models.BooleanField(default=False)
+    loading_checklist = models.BooleanField(default=False)
 
     # word_analysis = models.JSONField(blank=True, null=True, default=dict)
 
@@ -185,8 +185,7 @@ def user_created_handler(sender, instance, *args, **kwargs):
             print(instance.checklist[0]['prompt'])
             if len(instance.checklist[0]['prompt']) > 0:
                 print("sending langchain")
-                langchain_api(str(instance.nofo.file), instance.checklist, instance.pk)
-                #langchain_task.delay(str(instance.nofo.file), instance.checklist, instance.pk)
+                langchain_task.delay(str(instance.nofo.file), instance.checklist, instance.pk)
             
 
 @receiver(post_delete, sender=ComplianceImages)
