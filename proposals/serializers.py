@@ -88,7 +88,8 @@ class ProposalSerializer(serializers.ModelSerializer):
             'doc_start',
             'doc_end',
             'pages_ran',
-            'loading'
+            'loading',
+            'loading_checklist'
         ]
 
     def get_edit_url(self, obj):
