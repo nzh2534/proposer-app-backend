@@ -11,6 +11,6 @@ urlpatterns = [
     path('<int:pk>/compliance/<int:id>/update/', views.ComplianceUpdateAPIView.as_view(), name='compliance-edit'),
     path('<int:pk>/compliance/<int:id>/delete/', views.ComplianceDestroyAPIView.as_view()),
     path('template/', views.TemplateListCreateAPIView.as_view(), name='template-list'),
-    path('template/<int:pk>/update/', views.TemplateUpdateAPIView.as_view(), name='template-edit'),
-    path('template/<int:pk>/delete/', views.TemplateDestroyAPIView.as_view())
+    path('template/<int:id>/update/', views.TemplateUpdateAPIView.as_view(), name='template-edit'),
+    path('template/<int:id>/delete/', views.TemplateDestroyAPIView.as_view())
 ]
