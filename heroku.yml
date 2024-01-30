@@ -5,7 +5,7 @@ build:
 run:
   web: 
     command:
-      - gunicorn fhphome.wsgi:application --timeout 5000 --bind 0.0.0.0:$PORT
+      - gunicorn fhphome.wsgi:application --workers=2 --threads=2 --worker-class=gthread --timeout=5000 --bind=0.0.0.0:$PORT
     image: web
   worker: 
     command:
