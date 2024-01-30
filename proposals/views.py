@@ -179,7 +179,7 @@ class TemplateUpdateAPIView(
 
     queryset = Template.objects.all()
     serializer_class = TemplateSerializer
-    lookup_field = 'pk'
+    lookup_field = 'id'
 
     def perform_update(self, serializer):
         instance = serializer.save()
@@ -190,7 +190,7 @@ class TemplateDestroyAPIView(
 
     queryset = Template.objects.all()
     serializer_class = TemplateSerializer
-    lookup_field = 'pk'
+    lookup_field = 'id'
 
     def perform_destroy(self, instance):
         super().perform_destroy(instance)
