@@ -201,6 +201,5 @@ def remove_file_from_s3(sender, instance, *args, **kwargs):
     )
 
 class Template(models.Model):
-    #id = pk
     name = models.CharField(max_length=200)
     checklist = models.JSONField(default=template_default_value)

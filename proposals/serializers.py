@@ -122,6 +122,6 @@ class TemplateSerializer(serializers.ModelSerializer):
         model = Template
         fields = [
             'name',
-            'checklist'
+            'checklist',
             'id'
         ]
