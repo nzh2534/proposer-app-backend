@@ -29,8 +29,8 @@ jmespath==1.0.1
 langchain==0.1
 MarkupSafe==2.1.3
 numpy==1.24.3
-openai
-packaging
+openai==1.5.0
+packaging==23.2
 pandas==2.0.2
 pdf2image==1.16.3
 pdfminer.six==20221105
@@ -56,7 +56,7 @@ s3transfer==0.6.1
 scipy==1.10.1
 six==1.16.0
 sqlparse==0.4.4
-tiktoken
+tiktoken==0.5.2
 tqdm==4.65.0
 typing_extensions==4.6.3
 tzdata==2023.3
