@@ -101,6 +101,10 @@ def compliance_tool(file_path, pk, start_page, end_page):
 
     index = start_page
 
+    if end_page > doc.page_count:
+        end_page = doc.page_count
+        Proposal.objects.filter(pk=pk).update(doc_end=end_page)
+
     pages = end_page
 
     zoom_x = 1.5
