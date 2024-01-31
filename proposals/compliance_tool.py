@@ -32,7 +32,8 @@ from langchain.chat_models import ChatOpenAI
 from langchain.document_loaders import PyPDFLoader
 from tempfile import NamedTemporaryFile
 from langchain.vectorstores.pinecone import Pinecone as PineconeStore
-import pinecone
+from pinecone import Pinecone
+import time
 
 
 def add_import(a, b):
@@ -440,15 +441,15 @@ def langchain_api(url, template, pk):
     os.remove(tmp.name)
     embeddings = OpenAIEmbeddings()
 
+    pc = Pinecone(api_key=os.environ['PINECONE_API_KEY'])
     index_name = os.environ['PINECONE_INDEX']
-    pinecone.init(
-    api_key=os.environ['PINECONE_API_KEY']
-    )
+    index = pc.Index(index_name)
 
-    pinecone.create_index(index_name, dimension=1536,
-                          metric="cosine", pods=1, pod_type="p1.x1")
     
-    pdfsearch = PineconeStore.from_documents(loader, embeddings, index_name="tempindex")
+    pdfsearch = PineconeStore.from_documents(loader, embeddings, index_name=index_name)
+
+    while index.describe_index_stats()['total_vector_count'] < len(loader):
+        time.sleep(5)
 
     chain = ConversationalRetrievalChain.from_llm(ChatOpenAI(temperature=0.1), 
                                                     retriever=
@@ -468,7 +469,7 @@ def langchain_api(url, template, pk):
             print(e)
             continue
 
-    pinecone.delete_index(index_name)
     Proposal.objects.filter(pk=pk).update(checklist=template, loading_checklist=False)
+    index.delete(delete_all=True)
     
     return "DONE"
