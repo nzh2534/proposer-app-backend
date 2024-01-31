@@ -126,9 +126,7 @@ def jsonfield_default_value():  # This is a callable
 
 def template_default_value():
     return [
-        {"item": "", "id": 0, "data":"", 'pages':"", "prompt": ""},
-        {"item": "", "id": 1, "data":"", 'pages':"", "prompt": ""},
-        {"item": "", "id": 2, "data":"", 'pages':"", "prompt": ""}
+        {"item": "", "id": 0, "data":"", "page":"", "prompt": ""}
         ]
 
 class Proposal(models.Model):
