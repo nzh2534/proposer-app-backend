@@ -9,6 +9,8 @@ def compliance_task(nofo, pk, start, end):
     proposal = Proposal.objects.get(pk=pk)
 
     if proposal.pages_ran <= (proposal.doc_end - proposal.doc_start):
+        if proposal.pages_ran > 0:
+            start += proposal.pages_ran - 1
         compliance_tool(nofo, pk, start, end)
         
     return "DONE"

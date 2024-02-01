@@ -441,15 +441,21 @@ def langchain_api(url, template, pk):
     os.remove(tmp.name)
     embeddings = OpenAIEmbeddings()
 
+    print("embeddings loaded")
+
     pc = Pinecone(api_key=os.environ['PINECONE_API_KEY'])
     index_name = os.environ['PINECONE_INDEX']
     index = pc.Index(index_name)
 
+    print("index found")
     
     pdfsearch = PineconeStore.from_documents(loader, embeddings, index_name=index_name)
 
     while index.describe_index_stats()['total_vector_count'] < len(loader):
+        print(index.describe_index_stats()['total_vector_count'])
+        print("sleeping")
         time.sleep(5)
+        print("slept")
 
     chain = ConversationalRetrievalChain.from_llm(ChatOpenAI(temperature=0.1), 
                                                     retriever=
@@ -459,11 +465,13 @@ def langchain_api(url, template, pk):
     print("chain retrieved")
     chat_history = []
     for i in template:
+        print(i['prompt'])
         query = i['prompt']
         try:
             result = chain({"question": query, 'chat_history':chat_history}, return_only_outputs=True)
             chat_history += [(query, result["answer"])]
             i['data'] = result["answer"]
+            print(result["answer"])
             i['page'] = list(result['source_documents'][0])[1][1]['page']
         except Exception as e:
             print(e)
