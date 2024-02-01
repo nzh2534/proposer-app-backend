@@ -147,6 +147,7 @@ class Proposal(models.Model):
     pages_ran = models.IntegerField(default=0)
     loading = models.BooleanField(default=False)
     loading_checklist = models.BooleanField(default=False)
+    title_count = models.IntegerField(default=0)
 
     # word_analysis = models.JSONField(blank=True, null=True, default=dict)
 

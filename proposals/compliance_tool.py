@@ -87,6 +87,7 @@ def compliance_tool(file_path, pk, start_page, end_page):
     ocr_agent = ocr.TesseractAgent(languages='eng')
     print("model loaded")
     proposal = Proposal.objects.get(pk=pk)
+    filtered_proposal = Proposal.objects.filter(pk=pk)
 
     res = requests.get(settings.MEDIA_URL + file_path)
     print("getting images")
@@ -104,7 +105,7 @@ def compliance_tool(file_path, pk, start_page, end_page):
 
     if end_page > doc.page_count:
         end_page = doc.page_count
-        Proposal.objects.filter(pk=pk).update(doc_end=end_page)
+        filtered_proposal.update(doc_end=end_page)
 
     pages = end_page
 
@@ -112,8 +113,13 @@ def compliance_tool(file_path, pk, start_page, end_page):
     zoom_y = 1.5
     mat = fitz.Matrix(zoom_x, zoom_y)
 
-    previous_content = 0
-    title_count = 0
+    try:
+        data = requests.get(settings.MEDIA_URL + 'previouscontent_' + pk).content
+        previous_content = Image.open(io.BytesIO(data))
+    except:
+        previous_content = 0
+
+    title_count = proposal.title_count
     title_names = [] 
     content_names = [] 
     title_text = []
@@ -220,7 +226,8 @@ def compliance_tool(file_path, pk, start_page, end_page):
                     new_ci.save()
                     print("saved")
 
-                    title_count += 1
+                    # title_count += 1
+                    filtered_proposal.update(title_count=title_count + 1)
 
                 if pred_index + 1 != len(ordered_tb_list):
                     print("a_1")
@@ -267,11 +274,17 @@ def compliance_tool(file_path, pk, start_page, end_page):
                     new_ci.save()
                     print("saved")
 
-                    title_count += 1
+                    # title_count += 1
+                    filtered_proposal.update(title_count=title_count + 1)
                 else:
                     print("b_1")
                     previous_title = base_img.crop((i[0]-15,i[1]-5,i[2]+15,i[3]+5))
                     previous_content = base_img.crop((0,i[1]-5,pix.width,pix.height))
+
+                    in_mem_file = io.BytesIO()
+                    previous_content.save(in_mem_file, format="PNG")
+                    in_mem_file.seek(0)
+                    upload_src(in_mem_file, "media/previouscontent_" + pk, os.environ['AWS_STORAGE_BUCKET_NAME'])
         else:
             if title_count != 0:
                 print("c_1")
@@ -279,9 +292,14 @@ def compliance_tool(file_path, pk, start_page, end_page):
                 blank_content.paste(previous_content,(0,0))
                 blank_content.paste(base_img, (0,previous_content.height))
                 previous_content = blank_content
+
+                in_mem_file = io.BytesIO()
+                previous_content.save(in_mem_file, format="PNG")
+                in_mem_file.seek(0)
+                upload_src(in_mem_file, "media/previouscontent_" + pk, os.environ['AWS_STORAGE_BUCKET_NAME'])
             
         index += 1
-        Proposal.objects.filter(pk=pk).update(pages_ran=(index - start_page))
+        filtered_proposal.update(pages_ran=(index - start_page))
 
     # ---- For end of the document -----
     print("x_1")
@@ -340,7 +358,7 @@ def compliance_tool(file_path, pk, start_page, end_page):
         # print("saved")
         # index += 1
 
-    Proposal.objects.filter(pk=pk).update(loading=False, pages_ran=(index - start_page + 1))
+    filtered_proposal.update(loading=False, pages_ran=(index - start_page + 1))
 
     del result, title_names, content_names, title_text, content_text, page_number, ComplianceImages, Proposal
     gc.collect()
