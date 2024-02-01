@@ -151,12 +151,15 @@ def compliance_tool(file_path, pk, start_page, end_page):
             for l2 in lines_list:
                 if lines_list.index(l2) != line_num: 
                     if check > l2[1] and check < l2[3]:
-                        if score > scores_list[lines_list.index(l2)]:
-                            lines_list.remove(l2)
-                            print("deleted an overlap")
-                        else:
-                            lines_list.remove(l)
-                            print("deleted an overlap")
+                        try:
+                            if score > scores_list[lines_list.index(l2)]:
+                                lines_list.remove(l2)
+                                print("deleted an overlap")
+                            else:
+                                lines_list.remove(l)
+                                print("deleted an overlap")
+                        except Exception as e:
+                            print(e)
             line_num += 1
         
         for i in lines_list:
@@ -199,11 +202,23 @@ def compliance_tool(file_path, pk, start_page, end_page):
                     upload_src(in_mem_file, "media/" + content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
 
                     print("f_6")
-                    title_names.append(title_name)
-                    content_names.append(content_name)
-                    title_text.append(ocr_agent.detect(previous_title))
-                    content_text.append(ocr_agent.detect(blank_content))
-                    page_number.append(index)
+                    # title_names.append(title_name)
+                    # content_names.append(content_name)
+                    # title_text.append(ocr_agent.detect(previous_title))
+                    # content_text.append(ocr_agent.detect(blank_content))
+                    # page_number.append(index)
+
+                    new_ci = ComplianceImages(
+                        proposal=proposal,
+                        title=title_name,
+                        content=content_name,
+                        title_text=ocr_agent.detect(previous_title),
+                        content_text=ocr_agent.detect(blank_content),
+                        page_number=index
+                        )
+                    print("obj")
+                    new_ci.save()
+                    print("saved")
 
                     title_count += 1
 
@@ -234,11 +249,23 @@ def compliance_tool(file_path, pk, start_page, end_page):
                     upload_src(in_mem_file, "media/" + content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
 
                     print("a_5")
-                    title_names.append(title_name)
-                    content_names.append(content_name)
-                    title_text.append(ocr_agent.detect(title))
-                    content_text.append(ocr_agent.detect(content))
-                    page_number.append(index)
+                    # title_names.append(title_name)
+                    # content_names.append(content_name)
+                    # title_text.append(ocr_agent.detect(title))
+                    # content_text.append(ocr_agent.detect(content))
+                    # page_number.append(index)
+
+                    new_ci = ComplianceImages(
+                        proposal=proposal,
+                        title=title_name,
+                        content=content_name,
+                        title_text=ocr_agent.detect(title),
+                        content_text=ocr_agent.detect(content),
+                        page_number=index
+                        )
+                    print("obj")
+                    new_ci.save()
+                    print("saved")
 
                     title_count += 1
                 else:
@@ -277,33 +304,45 @@ def compliance_tool(file_path, pk, start_page, end_page):
     in_mem_file.seek(0)
     upload_src(in_mem_file, "media/" + content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
 
-    title_names.append(title_name)
-    content_names.append(content_name)
-    title_text.append(ocr_agent.detect(previous_title))
-    content_text.append(ocr_agent.detect(blank_content))
-    page_number.append(index)
+    # title_names.append(title_name)
+    # content_names.append(content_name)
+    # title_text.append(ocr_agent.detect(previous_title))
+    # content_text.append(ocr_agent.detect(blank_content))
+    # page_number.append(index)
 
-    result = [title_names, content_names, title_text, content_text, page_number]
-    index = 0
+    new_ci = ComplianceImages(
+        proposal=proposal,
+        title=title_name,
+        content=content_name,
+        title_text=ocr_agent.detect(previous_title),
+        content_text=ocr_agent.detect(blank_content),
+        page_number=index
+        )
+    print("obj")
+    new_ci.save()
+    print("saved")
 
-    for i in result[0]:
-        print("obj call")
-        new_ci = ComplianceImages(
-            proposal=proposal,
-            title=(i),
-            content=(result[1][index]),
-            title_text=result[2][index],
-            content_text=result[3][index],
-            page_number=result[4][index]
-            )
-        print("obj")
-        new_ci.save()
-        print("saved")
-        index += 1
+    # result = [title_names, content_names, title_text, content_text, page_number]
+    # index = 0
+
+    # for i in result[0]:
+    #     print("obj call")
+        # new_ci = ComplianceImages(
+        #     proposal=proposal,
+        #     title=(i),
+        #     content=(result[1][index]),
+        #     title_text=result[2][index],
+        #     content_text=result[3][index],
+        #     page_number=result[4][index]
+        #     )
+        # print("obj")
+        # new_ci.save()
+        # print("saved")
+        # index += 1
 
     Proposal.objects.filter(pk=pk).update(loading=False, pages_ran=(index - start_page + 1))
 
-    del result, title_names, content_names, title_text, content_text, page_number, ComplianceImages
+    del result, title_names, content_names, title_text, content_text, page_number, ComplianceImages, Proposal
     gc.collect()
 
     return "DONE"
