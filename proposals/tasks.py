@@ -4,7 +4,13 @@ from .compliance_tool import compliance_tool, langchain_api
 
 @shared_task
 def compliance_task(nofo, pk, start, end):
-    compliance_tool(nofo, pk, start, end)
+
+    from .models import Proposal
+    proposal = Proposal.objects.get(pk=pk)
+
+    if proposal.pages_ran <= (proposal.doc_end - proposal.doc_start):
+        compliance_tool(nofo, pk, start, end)
+        
     return "DONE"
 
 @shared_task
