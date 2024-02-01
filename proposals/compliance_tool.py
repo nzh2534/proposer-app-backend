@@ -110,11 +110,11 @@ def compliance_tool(file_path, pk, start_page, end_page):
         previous_content = 0
 
     title_count = proposal.title_count
-    title_names = [] 
-    content_names = [] 
-    title_text = []
-    content_text = []
-    page_number = []
+    # title_names = [] 
+    # content_names = [] 
+    # title_text = []
+    # content_text = []
+    # page_number = []
     while index < pages:
         print(index)
         pix = doc.load_page(index).get_pixmap(matrix=mat)
@@ -216,8 +216,8 @@ def compliance_tool(file_path, pk, start_page, end_page):
                     new_ci.save()
                     print("saved")
 
-                    # title_count += 1
-                    filtered_proposal.update(title_count=title_count + 1)
+                    title_count += 1
+                    filtered_proposal.update(title_count=title_count)
 
                 if pred_index + 1 != len(ordered_tb_list):
                     print("a_1")
@@ -264,8 +264,8 @@ def compliance_tool(file_path, pk, start_page, end_page):
                     new_ci.save()
                     print("saved")
 
-                    # title_count += 1
-                    filtered_proposal.update(title_count=title_count + 1)
+                    title_count += 1
+                    filtered_proposal.update(title_count=title_count)
                 else:
                     print("b_1")
                     previous_title = base_img.crop((i[0]-15,i[1]-5,i[2]+15,i[3]+5))
@@ -350,7 +350,7 @@ def compliance_tool(file_path, pk, start_page, end_page):
 
     filtered_proposal.update(loading=False, pages_ran=(index - start_page + 1))
 
-    del result, title_names, content_names, title_text, content_text, page_number, ComplianceImages, Proposal
+    del ComplianceImages, Proposal
     gc.collect()
 
     return "DONE"
