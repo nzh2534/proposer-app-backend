@@ -5,7 +5,7 @@ from celery import Celery
 # Set the default Django settings module for the 'celery' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'fhphome.settings')
 
-app = Celery('fhphome', broker=os.environ['AWS_MODEL_PATH']) #admin:pass@ampq
+app = Celery('fhphome', broker=os.environ['BROKER_URL']) #admin:pass@ampq
 
 # Using a string here means the worker doesn't have to serialize
 # the configuration object to child processes.
