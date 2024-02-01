@@ -26,16 +26,6 @@ s3_resource = session.resource('s3')
 
 gc.enable()
 
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.chains import ConversationalRetrievalChain
-from langchain.chat_models import ChatOpenAI
-from langchain.document_loaders import PyPDFLoader
-from tempfile import NamedTemporaryFile
-from langchain.vectorstores.pinecone import Pinecone as PineconeStore
-from pinecone import Pinecone
-import time
-
-
 def add_import(a, b):
     print("adding")
     x = a + b
@@ -284,7 +274,7 @@ def compliance_tool(file_path, pk, start_page, end_page):
                     in_mem_file = io.BytesIO()
                     previous_content.save(in_mem_file, format="PNG")
                     in_mem_file.seek(0)
-                    upload_src(in_mem_file, "media/previouscontent_" + pk, os.environ['AWS_STORAGE_BUCKET_NAME'])
+                    upload_src(in_mem_file, "media/previouscontent_" + str(pk), os.environ['AWS_STORAGE_BUCKET_NAME'])
         else:
             if title_count != 0:
                 print("c_1")
@@ -296,7 +286,7 @@ def compliance_tool(file_path, pk, start_page, end_page):
                 in_mem_file = io.BytesIO()
                 previous_content.save(in_mem_file, format="PNG")
                 in_mem_file.seek(0)
-                upload_src(in_mem_file, "media/previouscontent_" + pk, os.environ['AWS_STORAGE_BUCKET_NAME'])
+                upload_src(in_mem_file, "media/previouscontent_" + str(pk), os.environ['AWS_STORAGE_BUCKET_NAME'])
             
         index += 1
         filtered_proposal.update(pages_ran=(index - start_page))
@@ -480,6 +470,14 @@ def merge_tool(url1, url2, content_id, pk):
 
 
 def langchain_api(url, template, pk):
+    from langchain.embeddings.openai import OpenAIEmbeddings
+    from langchain.chains import ConversationalRetrievalChain
+    from langchain.chat_models import ChatOpenAI
+    from langchain.document_loaders import PyPDFLoader
+    from tempfile import NamedTemporaryFile
+    from langchain.vectorstores.pinecone import Pinecone as PineconeStore
+    from pinecone import Pinecone
+    import time
     print("starting langchain")
     from .models import Proposal
     Proposal.objects.filter(pk=pk).update(loading_checklist=True)
@@ -528,7 +526,6 @@ def langchain_api(url, template, pk):
             result = chain({"question": query, 'chat_history':chat_history}, return_only_outputs=True)
             chat_history += [(query, result["answer"])]
             i['data'] = result["answer"]
-            print(result["answer"])
             i['page'] = list(result['source_documents'][0])[1][1]['page']
         except Exception as e:
             print(e)
