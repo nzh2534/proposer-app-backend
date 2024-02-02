@@ -13,11 +13,12 @@ def compliance_task(nofo, pk, start, end):
     if proposal.pages_ran <= (proposal.doc_end - proposal.doc_start):
         print(f'Pages ran {proposal.pages_ran}')
         print(f'Pages start {proposal.doc_start}')
-        print(f'Pages ran {proposal.doc_end}')
+        print(f'Pages end {proposal.doc_end}')
 
+        start_orig = start
         if proposal.pages_ran > 0:
             start += proposal.pages_ran - 1
-        compliance_tool(nofo, pk, start, end)
+        compliance_tool(nofo, pk, start, end, start_orig)
         
     return "DONE"
 

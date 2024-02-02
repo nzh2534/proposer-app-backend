@@ -61,7 +61,7 @@ def image_to_inmemory_and_s3 (id, pk, img, suffix):
     upload_src(in_mem_file, "media/" + new_file_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
     return new_file_name
 
-def compliance_tool(file_path, pk, start_page, end_page):
+def compliance_tool(file_path, pk, start_page, end_page, start_orig):
     from .models import ComplianceImages, Proposal
     from detectron2.config import get_cfg
     from detectron2.engine import DefaultPredictor
@@ -289,7 +289,7 @@ def compliance_tool(file_path, pk, start_page, end_page):
                 upload_src(in_mem_file, "media/previouscontent_" + str(pk), os.environ['AWS_STORAGE_BUCKET_NAME'])
             
         index += 1
-        filtered_proposal.update(pages_ran=(index - start_page))
+        filtered_proposal.update(pages_ran=(index - start_orig))
 
     # ---- For end of the document -----
     print("x_1")
@@ -348,7 +348,7 @@ def compliance_tool(file_path, pk, start_page, end_page):
         # print("saved")
         # index += 1
 
-    filtered_proposal.update(loading=False, pages_ran=(index - start_page + 1))
+    filtered_proposal.update(loading=False, pages_ran=(index - start_orig + 1))
 
     del ComplianceImages, Proposal
     gc.collect()
