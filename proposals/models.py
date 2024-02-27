@@ -10,7 +10,7 @@ from django.db.models.signals import(
 )
 
 from .compliance_tool import langchain_api
-from .tasks import compliance_task#, langchain_task
+from .tasks import compliance_task, langchain_task
 # from django.db import transaction
 
 import boto3
@@ -184,7 +184,7 @@ def user_created_handler(sender, instance, *args, **kwargs):
             print(instance.checklist[0]['prompt'])
             if len(instance.checklist[0]['prompt']) > 0:
                 print("sending langchain")
-                langchain_api(str(instance.nofo.file), instance.checklist, instance.pk)
+                langchain_task.delay(str(instance.nofo.file), instance.checklist, instance.pk)
             
 
 @receiver(post_delete, sender=ComplianceImages)
