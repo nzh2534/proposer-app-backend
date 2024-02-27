@@ -11,7 +11,7 @@ from django.db.models.signals import(
 
 from .compliance_tool import langchain_api
 from .tasks import compliance_task#, langchain_task
-# from django.db import transaction
+from django.db import transaction
 
 import boto3
 import os
@@ -177,15 +177,14 @@ class ComplianceImages(models.Model):
 
 @receiver(post_save, sender=Proposal)
 def user_created_handler(sender, instance, *args, **kwargs):
-    if kwargs['created']:
-        if (instance.nofo != '') and (instance.pages_ran == 0):
-            if len(list(instance.complianceimages_set.all())) == 0:
-                compliance_task.delay(str(instance.nofo.file), instance.pk, instance.doc_start, instance.doc_end)
-                print(instance.checklist)
-                print(instance.checklist[0]['prompt'])
-                if len(instance.checklist[0]['prompt']) > 0:
-                    print("sending langchain")
-                    langchain_api(str(instance.nofo.file), instance.checklist, instance.pk)
+    if (instance.nofo != '') and (instance.pages_ran == 0):
+        if len(list(instance.complianceimages_set.all())) == 0:
+            transaction.on_commit(lambda: compliance_task.delay(str(instance.nofo.file), instance.pk, instance.doc_start, instance.doc_end))
+            print(instance.checklist)
+            print(instance.checklist[0]['prompt'])
+            if len(instance.checklist[0]['prompt']) > 0:
+                print("sending langchain")
+                transaction.on_commit(lambda: langchain_api(str(instance.nofo.file), instance.checklist, instance.pk))
             
 
 @receiver(post_delete, sender=ComplianceImages)
