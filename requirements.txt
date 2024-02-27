@@ -20,6 +20,7 @@ djangorestframework-simplejwt==5.2.2
 django-rq==2.8.1
 drf-yasg==1.21.5
 gunicorn==20.1.0
+huggingface_hub
 idna==3.4
 inflection==0.5.1
 iopath==0.1.10
