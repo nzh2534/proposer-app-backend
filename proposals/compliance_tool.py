@@ -469,69 +469,167 @@ def merge_tool(url1, url2, content_id, pk):
     return merged_image
 
 
-def langchain_api(url, template, pk):
-    from langchain.embeddings.openai import OpenAIEmbeddings
-    from langchain.chains import ConversationalRetrievalChain
-    from langchain.chat_models import ChatOpenAI
-    from langchain.document_loaders import PyPDFLoader
-    from tempfile import NamedTemporaryFile
-    from langchain.vectorstores.pinecone import Pinecone as PineconeStore
-    from pinecone import Pinecone
-    import time
-    print("starting langchain")
-    from .models import Proposal
-    Proposal.objects.filter(pk=pk).update(loading_checklist=True)
-    response = requests.get(settings.MEDIA_URL + url)
-    mem_obj = io.BytesIO(response.content)
+def langchain_api(url, template, pk, aitype=os.environ['AI_TYPE']):
+    if aitype == "OpenAI":
+        from langchain.embeddings.openai import OpenAIEmbeddings
+        from langchain.chains import ConversationalRetrievalChain
+        from langchain.chat_models import ChatOpenAI
+        from langchain.document_loaders import PyPDFLoader
+        from langchain_core.prompts import PromptTemplate
+        from tempfile import NamedTemporaryFile
+        from langchain.vectorstores.pinecone import Pinecone as PineconeStore
+        from pinecone import Pinecone
+        import time
+        print("starting langchain")
+        from .models import Proposal
+        Proposal.objects.filter(pk=pk).update(loading_checklist=True)
+        response = requests.get(settings.MEDIA_URL + url)
+        mem_obj = io.BytesIO(response.content)
 
-    print("doc in mem")
+        print("doc in mem")
 
-    bytes_data = mem_obj.read()
-    with NamedTemporaryFile(delete=False) as tmp:
-        tmp.write(bytes_data)                     
-        loader = PyPDFLoader(tmp.name).load()
+        bytes_data = mem_obj.read()
+        with NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(bytes_data)                     
+            loader = PyPDFLoader(tmp.name).load()
 
-    print("doc loader")
+        print("doc loader")
 
-    os.remove(tmp.name)
-    embeddings = OpenAIEmbeddings()
+        os.remove(tmp.name)
+        embeddings = OpenAIEmbeddings()
 
-    print("embeddings loaded")
+        print("embeddings loaded")
 
-    pc = Pinecone(api_key=os.environ['PINECONE_API_KEY'])
-    index_name = os.environ['PINECONE_INDEX']
-    index = pc.Index(index_name)
+        pc = Pinecone(api_key=os.environ['PINECONE_API_KEY'])
+        index_name = os.environ['PINECONE_INDEX']
+        index = pc.Index(index_name)
 
-    print("index found")
+        print("index found")
+        
+        pdfsearch = PineconeStore.from_documents(loader, embeddings, index_name=index_name)
+
+        while index.describe_index_stats()['total_vector_count'] < len(loader):
+            print(index.describe_index_stats()['total_vector_count'])
+            print("sleeping")
+            time.sleep(5)
+            print("slept")
+
+        chain = ConversationalRetrievalChain.from_llm(ChatOpenAI(temperature=0.1), 
+                                                        retriever=
+                                                        pdfsearch.as_retriever(search_kwargs={"k": 1}),
+                                                        return_source_documents=True,)
+        
+        print("chain retrieved")
+        chat_history = []
+        for i in template:
+            print(i['prompt'])
+            query = i['prompt']
+            try:
+                result = chain({"question": query, 'chat_history':chat_history}, return_only_outputs=True)
+                chat_history += [(query, result["answer"])]
+                i['data'] = result["answer"]
+                i['page'] = list(result['source_documents'][0])[1][1]['page']
+            except Exception as e:
+                print(e)
+                continue
+
+        Proposal.objects.filter(pk=pk).update(checklist=template, loading_checklist=False)
+        index.delete(delete_all=True)
+        
+        return "DONE"
     
-    pdfsearch = PineconeStore.from_documents(loader, embeddings, index_name=index_name)
+    if aitype == "HuggingFace":
+        from langchain.embeddings.huggingface_hub import HuggingFaceHubEmbeddings
+        from langchain.llms.huggingface_hub import HuggingFaceHub
+        from langchain.chains import ConversationalRetrievalChain
+        from langchain_core.prompts import PromptTemplate
+        from langchain.document_loaders import PyPDFLoader
+        from tempfile import NamedTemporaryFile
+        from langchain.vectorstores.pinecone import Pinecone as PineconeStore
+        from pinecone import Pinecone
+        import time
+        print("starting langchain")
+        from .models import Proposal
+        Proposal.objects.filter(pk=pk).update(loading_checklist=True)
+        response = requests.get(settings.MEDIA_URL + url)
+        mem_obj = io.BytesIO(response.content)
 
-    while index.describe_index_stats()['total_vector_count'] < len(loader):
-        print(index.describe_index_stats()['total_vector_count'])
-        print("sleeping")
-        time.sleep(5)
-        print("slept")
+        print("doc in mem")
 
-    chain = ConversationalRetrievalChain.from_llm(ChatOpenAI(temperature=0.1), 
-                                                    retriever=
-                                                    pdfsearch.as_retriever(search_kwargs={"k": 1}),
-                                                    return_source_documents=True,)
-    
-    print("chain retrieved")
-    chat_history = []
-    for i in template:
-        print(i['prompt'])
-        query = i['prompt']
-        try:
-            result = chain({"question": query, 'chat_history':chat_history}, return_only_outputs=True)
-            chat_history += [(query, result["answer"])]
-            i['data'] = result["answer"]
-            i['page'] = list(result['source_documents'][0])[1][1]['page']
-        except Exception as e:
-            print(e)
-            continue
+        bytes_data = mem_obj.read()
+        with NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(bytes_data)                     
+            loader = PyPDFLoader(tmp.name).load()
 
-    Proposal.objects.filter(pk=pk).update(checklist=template, loading_checklist=False)
-    index.delete(delete_all=True)
-    
-    return "DONE"
+        print("doc loader")
+
+        os.remove(tmp.name)
+        embeddings = HuggingFaceHubEmbeddings()
+
+        llm = HuggingFaceHub(
+            repo_id="HuggingFaceH4/zephyr-7b-beta",
+            task="text-generation",
+            model_kwargs={
+                "max_new_tokens": 512,
+                "top_k": 30,
+                "temperature": 0.1,
+                "repetition_penalty": 1.03,
+            },
+        )
+
+        print("embeddings loaded")
+
+        pc = Pinecone(api_key=os.environ['PINECONE_API_KEY'])
+        index_name = os.environ['PINECONE_INDEX2']
+        index = pc.Index(index_name)
+
+        print("index found")
+        
+        pdfsearch = PineconeStore.from_documents(loader, embeddings, index_name=index_name)
+
+        while index.describe_index_stats()['total_vector_count'] < len(loader):
+            print(index.describe_index_stats()['total_vector_count'])
+            print("sleeping")
+            time.sleep(5)
+            print("slept")
+
+        template = ''' 
+        You are a helpful AI bot that answers questions for a user.
+        The following is a set of context and a question that will relate to the context.
+        #CONTEXT
+        {context}
+        #ENDCONTEXT
+
+        #QUESTION
+        {question} Don’t give information outside the document. If the information is not available in the context respond UNABLE TO FIND BASED ON THE PROMPT.
+        '''
+        
+        prompt = PromptTemplate(
+                    template=template, 
+                    input_variables=["context", "chat_history", "question"])
+
+
+        chain = ConversationalRetrievalChain.from_llm(llm=llm, 
+                                                        retriever=
+                                                        pdfsearch.as_retriever(search_kwargs={"k": 1}),
+                                                        return_source_documents=True,
+                                                        combine_docs_chain_kwargs={"prompt": prompt})
+        
+        print("chain retrieved")
+        chat_history = []
+        for i in template:
+            print(i['prompt'])
+            query = i['prompt']
+            try:
+                result = chain({"question": query, 'chat_history':chat_history}, return_only_outputs=True)
+                chat_history += [(query, result["answer"])]
+                i['data'] = result["answer"]
+                i['page'] = list(result['source_documents'][0])[1][1]['page']
+            except Exception as e:
+                print(e)
+                continue
+
+        Proposal.objects.filter(pk=pk).update(checklist=template, loading_checklist=False)
+        index.delete(delete_all=True)
+        
+        return "DONE"
