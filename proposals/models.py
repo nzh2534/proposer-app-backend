@@ -177,14 +177,15 @@ class ComplianceImages(models.Model):
 
 @receiver(post_save, sender=Proposal)
 def user_created_handler(sender, instance, *args, **kwargs):
-    if (instance.nofo != '') and (instance.pages_ran == 0):
-        if len(list(instance.complianceimages_set.all())) == 0:
-            compliance_task.delay(str(instance.nofo.file), instance.pk, instance.doc_start, instance.doc_end)
-            print(instance.checklist)
-            print(instance.checklist[0]['prompt'])
-            if len(instance.checklist[0]['prompt']) > 0:
-                print("sending langchain")
-                langchain_task.delay(str(instance.nofo.file), instance.checklist, instance.pk)
+    if kwargs['created']:
+        if (instance.nofo != '') and (instance.pages_ran == 0):
+            if len(list(instance.complianceimages_set.all())) == 0:
+                compliance_task.delay(str(instance.nofo.file), instance.pk, instance.doc_start, instance.doc_end)
+                print(instance.checklist)
+                print(instance.checklist[0]['prompt'])
+                if len(instance.checklist[0]['prompt']) > 0:
+                    print("sending langchain")
+                    langchain_task(str(instance.nofo.file), instance.checklist, instance.pk)
             
 
 @receiver(post_delete, sender=ComplianceImages)
