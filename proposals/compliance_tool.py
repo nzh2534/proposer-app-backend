@@ -514,10 +514,26 @@ def langchain_api(url, template, pk, aitype=os.environ['AI_TYPE']):
             time.sleep(5)
             print("slept")
 
+        temp = ''' 
+        You are a helpful AI bot that answers questions for a user.
+        The following is a set of context and a question that will relate to the context.
+        #CONTEXT
+        {context}
+        #ENDCONTEXT
+
+        #QUESTION
+        {question} Don’t give information outside the document. If the information is not available in the context respond UNABLE TO FIND BASED ON THE PROMPT.
+        '''
+        
+        prompt = PromptTemplate(
+                    template=temp, 
+                    input_variables=["context", "chat_history", "question"])
+
         chain = ConversationalRetrievalChain.from_llm(ChatOpenAI(temperature=0.1), 
                                                         retriever=
                                                         pdfsearch.as_retriever(search_kwargs={"k": 1}),
-                                                        return_source_documents=True,)
+                                                        return_source_documents=True,
+                                                        combine_docs_chain_kwargs={"prompt": prompt})
         
         print("chain retrieved")
         chat_history = []
@@ -593,7 +609,7 @@ def langchain_api(url, template, pk, aitype=os.environ['AI_TYPE']):
             time.sleep(5)
             print("slept")
 
-        template = ''' 
+        temp = ''' 
         You are a helpful AI bot that answers questions for a user.
         The following is a set of context and a question that will relate to the context.
         #CONTEXT
@@ -605,7 +621,7 @@ def langchain_api(url, template, pk, aitype=os.environ['AI_TYPE']):
         '''
         
         prompt = PromptTemplate(
-                    template=template, 
+                    template=temp, 
                     input_variables=["context", "chat_history", "question"])
 
 
