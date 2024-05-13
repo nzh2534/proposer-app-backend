@@ -10,7 +10,7 @@ from django.db.models.signals import(
 )
 
 from .compliance_tool import langchain_api#, compliance_tool
-from .tasks import compliance_task, langchain_task
+from .tasks import langchain_task #compliance_task
 from django.db import transaction
 
 import boto3
