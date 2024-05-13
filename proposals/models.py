@@ -9,12 +9,18 @@ from django.db.models.signals import(
     post_delete
 )
 
-# from .compliance_tool import langchain_api
+from .compliance_tool import langchain_api#, compliance_tool
 from .tasks import compliance_task, langchain_task
 from django.db import transaction
 
 import boto3
 import os
+
+import requests
+
+# # REMOVE IN PROD
+# from dotenv import load_dotenv
+# load_dotenv()
 
 session = boto3.Session(
     aws_access_key_id= os.environ['AWS_ACCESS_KEY_ID'],
@@ -178,13 +184,48 @@ class ComplianceImages(models.Model):
 @receiver(post_save, sender=Proposal)
 def user_created_handler(sender, instance, *args, **kwargs):
     if (instance.nofo != '') and (instance.pages_ran == 0):
-        if len(list(instance.complianceimages_set.all())) == 0:
-            transaction.on_commit(lambda: compliance_task.delay(str(instance.nofo.file), instance.pk, instance.doc_start, instance.doc_end))
-            print(instance.checklist)
-            print(instance.checklist[0]['prompt'])
-            if len(instance.checklist[0]['prompt']) > 0:
-                print("sending langchain")
-                transaction.on_commit(lambda: langchain_task.delay(str(instance.nofo.file), instance.checklist, instance.pk))
+        if os.environ['TESTING'] != 'True':
+            if len(list(instance.complianceimages_set.all())) == 0:
+                #transaction.on_commit(lambda: compliance_task.delay(str(instance.nofo.file), instance.pk, instance.doc_start, instance.doc_end))
+                data = {
+                    "nofo" : str(instance.nofo.file),
+                    "pk": instance.pk,
+                    "doc_start": instance.doc_start,
+                    "doc_end": instance.doc_end,
+                    "media_url": settings.MEDIA_URL,
+                    "title_count": instance.title_count,
+                    "title": instance.title
+                }
+
+                response = requests.post(f'http://pdfmlbalancer-1287380250.us-east-2.elb.amazonaws.com/compliance_tool', json=data)
+                print(instance.checklist)
+                print(instance.checklist[0]['prompt'])
+                if len(instance.checklist[0]['prompt']) > 0:
+                    print("sending langchain")
+                    transaction.on_commit(lambda: langchain_task.delay(str(instance.nofo.file), instance.checklist, instance.pk))
+        else:
+            print("running")
+            if len(list(instance.complianceimages_set.all())) == 0:
+                data = {
+                    "nofo" : str(instance.nofo.file),
+                    "pk": instance.pk,
+                    "doc_start": instance.doc_start,
+                    "doc_end": instance.doc_end,
+                    "media_url": settings.MEDIA_URL,
+                    "title_count": instance.title_count,
+                    "title": instance.title
+                }
+
+                response = requests.post(f'http://pdfmlbalancer-1287380250.us-east-2.elb.amazonaws.com/compliance_tool', json=data)
+                print(response)
+                print(response.status_code)
+                print(response.content)
+                #compliance_tool(str(instance.nofo.file), instance.pk, instance.doc_start, instance.doc_end, 0, settings.MEDIA_URL, instance.title_count, instance.title)
+                print(instance.checklist)
+                print(instance.checklist[0]['prompt'])
+                if len(instance.checklist[0]['prompt']) > 0:
+                    print("sending langchain")
+                    langchain_api(str(instance.nofo.file), instance.checklist, instance.pk)
             
 
 @receiver(post_delete, sender=ComplianceImages)

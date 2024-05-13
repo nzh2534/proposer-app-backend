@@ -114,8 +114,9 @@ DATABASES = {
     }
 }
 
-db_from_env = dj_database_url.config(conn_max_age=600)
-DATABASES['default'].update(db_from_env)
+if os.environ['TESTING'] != 'True':
+    db_from_env = dj_database_url.config(conn_max_age=600)
+    DATABASES['default'].update(db_from_env)
 
 CELERY_BROKER_POOL_LIMIT = None
 
@@ -155,8 +156,11 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 CORS_ALLOWED_ORIGINS = [
-    os.environ['CORS_ALLOWED_ORIGINS']
+    #os.environ['CORS_ALLOWED_ORIGINS']
+    "http://localhost:3000",
+    "http://pdfmlbalancer-1287380250.us-east-2.elb.amazonaws.com"
 ]
+
 CSRF_TRUSTED_ORIGINS = [
     os.environ['CSRF_TRUSTED_ORIGINS']
 ]

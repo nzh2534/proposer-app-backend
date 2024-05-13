@@ -1,5 +1,5 @@
-import numpy as np
-import fitz
+# import numpy as np
+# import fitz
 from PIL import Image
 import layoutparser.ocr as ocr
 import boto3
@@ -7,8 +7,13 @@ import os
 import gc
 import io
 import requests
+# import json
 
 from botocore.exceptions import ClientError
+
+# # REMOVE IN PROD
+# from dotenv import load_dotenv
+# load_dotenv()
 
 # -- Only needed for Detectron2 testing/logs
 # from detectron2.utils.logger import setup_logger
@@ -61,299 +66,329 @@ def image_to_inmemory_and_s3 (id, pk, img, suffix):
     upload_src(in_mem_file, "media/" + new_file_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
     return new_file_name
 
-def compliance_tool(file_path, pk, start_page, end_page, start_orig):
-    from .models import ComplianceImages, Proposal
-    from detectron2.config import get_cfg
-    from detectron2.engine import DefaultPredictor
-    from detectron2 import model_zoo
-    cfg = get_cfg()
-    cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))
-    cfg.MODEL.DEVICE = "cpu"
-    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.3 # Set threshold for this model
-    cfg.MODEL.WEIGHTS = os.environ['AWS_MODEL_PATH']
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
-    print("loading model")
-    predictor = DefaultPredictor(cfg)
-    ocr_agent = ocr.TesseractAgent(languages='eng')
-    print("model loaded")
-    proposal = Proposal.objects.get(pk=pk)
-    filtered_proposal = Proposal.objects.filter(pk=pk)
 
-    res = requests.get(settings.MEDIA_URL + file_path)
-    print("getting images")
-    try:
-        doc = fitz.open(stream=res.content, filetype="pdf")
-    except Exception as e:
-        print(e)
-        doc = fitz.open(stream=res.content.read(), filetype="pdf")
+# def ComplianceImages(proposal, title, content, title_text, content_text, page_number, access_token):
+#     '''
+#     proposal=proposal,
+#     title=title_name,
+#     content=content_name,
+#     title_text=ocr_agent.detect(title),
+#     content_text=ocr_agent.detect(content),
+#     page_number=index
+#     '''
+#     data = {
+#         "proposal" : proposal,
+#         "title_pre": title,
+#         "content_pre": content,
+#         "title_text": title_text,
+#         "content_text": content_text,
+#         "page_number": page_number,
+#         "process": "None"
+#     }
+
+#     headers = {"Authorization": 'JWT ' + access_token}
+#     response = requests.post(f'http://localhost:8000/api/proposals/{proposal}/compliance/', data=data, headers=headers)
+
+#     if response.status_code == 201:
+#         print("New instance of ChildModel created successfully!")
+#         print("New object ID:", response.json()['id'])
+#     else:
+#         print("Failed to create new instance of ChildModel.")
+#         print("Response status code:", response.status_code)
+#         #print("Response content:", response.content)
+
+# def proposal_update(pk, title, access_token, *args, **kwargs):
+
+#     data = {
+#         "proposal" : pk,
+#         "title": title
+#     }
+
+#     for key, value in kwargs.items():
+#         data[key] = value
+
+#     headers = {"Authorization": 'JWT ' + access_token}
+#     response = requests.put(f'http://localhost:8000/api/proposals/{pk}/update/', data=data, headers=headers)
+
+#     if response.status_code == 200:
+#         print("Proposal updated")
+#     else:
+#         print("Proposal Update Failed")
+#         print("Response status code:", response.status_code)
+
+# def compliance_tool(file_path, pk, start_page, end_page, start_orig, media_url, start_title_count, proposal_title):
+#     #from .models import Proposal #ComplianceImages
+#     from detectron2.config import get_cfg
+#     from detectron2.engine import DefaultPredictor
+#     from detectron2 import model_zoo
+
+#     access_res = requests.post(
+#         f'http://localhost:8000/api/token/', 
+#         data=json.dumps({"username": os.environ['LAMBDA_USER'], "password": os.environ['LAMBDA_PASS']}), 
+#         headers={'Content-Type': 'application/json'}
+#         )
+#     access_token = access_res.json()['access']
+
+#     cfg = get_cfg()
+#     cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))
+#     cfg.MODEL.DEVICE = "cpu"
+#     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.3 # Set threshold for this model
+#     cfg.MODEL.WEIGHTS = "https://django-proposer.s3.us-east-2.amazonaws.com/media/model_final.pth"#os.environ['AWS_MODEL_PATH']
+#     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
+#     print("loading model")
+#     predictor = DefaultPredictor(cfg)
+#     ocr_agent = ocr.TesseractAgent(languages='eng')
+#     print("model loaded")
+#     # proposal = Proposal.objects.get(pk=pk)
+#     # filtered_proposal = Proposal.objects.filter(pk=pk)
+
+#     res = requests.get(media_url + file_path)
+#     print("getting images")
+#     try:
+#         doc = fitz.open(stream=res.content, filetype="pdf")
+#     except Exception as e:
+#         print(e)
+#         doc = fitz.open(stream=res.content.read(), filetype="pdf")
 
 
-    del file_path
-    gc.collect()
+#     del file_path
+#     gc.collect()
 
-    index = start_page
+#     index = start_page
 
-    if end_page > doc.page_count:
-        end_page = doc.page_count
-        filtered_proposal.update(doc_end=end_page)
+#     if end_page > doc.page_count:
+#         end_page = doc.page_count
+#         #filtered_proposal.update(doc_end=end_page)
+#         proposal_update(pk, proposal_title, access_token, doc_end=end_page)
 
-    pages = end_page
+#     pages = end_page
 
-    zoom_x = 1.5
-    zoom_y = 1.5
-    mat = fitz.Matrix(zoom_x, zoom_y)
+#     zoom_x = 1.5
+#     zoom_y = 1.5
+#     mat = fitz.Matrix(zoom_x, zoom_y)
 
-    try:
-        data = requests.get(settings.MEDIA_URL + 'previouscontent_' + pk).content
-        previous_content = Image.open(io.BytesIO(data))
-    except:
-        previous_content = 0
+#     try:
+#         data = requests.get(settings.MEDIA_URL + 'previouscontent_' + pk).content
+#         previous_content = Image.open(io.BytesIO(data))
+#     except:
+#         previous_content = 0
 
-    title_count = proposal.title_count
-    # title_names = [] 
-    # content_names = [] 
-    # title_text = []
-    # content_text = []
-    # page_number = []
-    while index < pages:
-        print(index)
-        pix = doc.load_page(index).get_pixmap(matrix=mat)
-        print("a")
-        mode = "RGBA" if pix.alpha else "RGB"
-        print("b")
-        base_img = Image.frombytes(mode, [pix.width, pix.height], pix.samples)
-        print("c")
-        img = np.array(base_img)
-        print("d")
-        prediction = predictor(img)
-        print("e")
+#     title_count = start_title_count#proposal.title_count
 
-        outputs = prediction
-        tb_list = []
+#     while index < pages:
+#         print(index)
+#         pix = doc.load_page(index).get_pixmap(matrix=mat)
+#         print("a")
+#         mode = "RGBA" if pix.alpha else "RGB"
+#         print("b")
+#         base_img = Image.frombytes(mode, [pix.width, pix.height], pix.samples)
+#         print("c")
+#         img = np.array(base_img)
+#         print("d")
+#         prediction = predictor(img)
+#         print("e")
 
-        outputs_filtered = outputs['instances'][outputs['instances'].scores > 0.84]
+#         outputs = prediction
+#         tb_list = []
 
-        scores_list = []
-        lines_list = []
-        for l in outputs_filtered.pred_boxes:
-            lines_list.append([float(l[0]),float(l[1]),float(l[2]),float(l[3])])
-        for s in outputs_filtered.scores:
-            scores_list.append(float(s))
+#         outputs_filtered = outputs['instances'][outputs['instances'].scores > 0.84]
 
-        line_num = 0
-        for l in lines_list:
-            check = l[1]
-            score = scores_list[line_num]
-            for l2 in lines_list:
-                if lines_list.index(l2) != line_num: 
-                    if check > l2[1] and check < l2[3]:
-                        try:
-                            if score > scores_list[lines_list.index(l2)]:
-                                lines_list.remove(l2)
-                                print("deleted an overlap")
-                            else:
-                                lines_list.remove(l)
-                                print("deleted an overlap")
-                        except Exception as e:
-                            print(e)
-            line_num += 1
+#         scores_list = []
+#         lines_list = []
+#         for l in outputs_filtered.pred_boxes:
+#             lines_list.append([float(l[0]),float(l[1]),float(l[2]),float(l[3])])
+#         for s in outputs_filtered.scores:
+#             scores_list.append(float(s))
+
+#         line_num = 0
+#         for l in lines_list:
+#             check = l[1]
+#             score = scores_list[line_num]
+#             for l2 in lines_list:
+#                 if lines_list.index(l2) != line_num: 
+#                     if check > l2[1] and check < l2[3]:
+#                         try:
+#                             if score > scores_list[lines_list.index(l2)]:
+#                                 lines_list.remove(l2)
+#                                 print("deleted an overlap")
+#                             else:
+#                                 lines_list.remove(l)
+#                                 print("deleted an overlap")
+#                         except Exception as e:
+#                             print(e)
+#             line_num += 1
         
-        for i in lines_list:
-            tb_list.append([i[0],i[1],i[2],i[3]])
+#         for i in lines_list:
+#             tb_list.append([i[0],i[1],i[2],i[3]])
 
-        order_list = sorted([b[1] for b in tb_list]) 
+#         order_list = sorted([b[1] for b in tb_list]) 
 
-        ordered_tb_list = []
-        for y in order_list:
-            for tb in tb_list:
-                if tb[1] == y:
-                    ordered_tb_list.append(tb)
+#         ordered_tb_list = []
+#         for y in order_list:
+#             for tb in tb_list:
+#                 if tb[1] == y:
+#                     ordered_tb_list.append(tb)
 
-        print("done with TB list")
-        if len(ordered_tb_list) != 0:
-            for i in ordered_tb_list:
-                pred_index = ordered_tb_list.index(i)
-                if ordered_tb_list.index(i) == 0 and previous_content != 0:
-                    print("f_1")
-                    final_content = base_img.crop((0,0,pix.width,i[1]))
-                    print("f_2")
-                    blank_content = Image.new("RGB", (pix.width, previous_content.height + final_content.height), "white")
-                    print("f_3")
-                    blank_content.paste(previous_content,(0,0))
-                    print("f_4")
-                    blank_content.paste(final_content, (0,previous_content.height))
+#         print("done with TB list")
+#         if len(ordered_tb_list) != 0:
+#             for i in ordered_tb_list:
+#                 pred_index = ordered_tb_list.index(i)
+#                 if ordered_tb_list.index(i) == 0 and previous_content != 0:
+#                     print("f_1")
+#                     final_content = base_img.crop((0,0,pix.width,i[1]))
+#                     print("f_2")
+#                     blank_content = Image.new("RGB", (pix.width, previous_content.height + final_content.height), "white")
+#                     print("f_3")
+#                     blank_content.paste(previous_content,(0,0))
+#                     print("f_4")
+#                     blank_content.paste(final_content, (0,previous_content.height))
 
-                    title_name = str(pk) + "_" + str(title_count) + "_" + "title.jpg"
-                    content_name = str(pk) + "_" + str(title_count) + "_" + "content.jpg"
+#                     title_name = str(pk) + "_" + str(title_count) + "_" + "title.jpg"
+#                     content_name = str(pk) + "_" + str(title_count) + "_" + "content.jpg"
                     
-                    print("f_5")
-                    in_mem_file = io.BytesIO()
-                    previous_title.save(in_mem_file, format="PNG")
-                    in_mem_file.seek(0)
-                    upload_src(in_mem_file, "media/" + title_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
+#                     print("f_5")
+#                     in_mem_file = io.BytesIO()
+#                     previous_title.save(in_mem_file, format="PNG")
+#                     in_mem_file.seek(0)
+#                     upload_src(in_mem_file, "media/" + title_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
 
-                    in_mem_file = io.BytesIO()
-                    blank_content.save(in_mem_file, format="PNG")
-                    in_mem_file.seek(0)
-                    upload_src(in_mem_file, "media/" + content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
+#                     in_mem_file = io.BytesIO()
+#                     blank_content.save(in_mem_file, format="PNG")
+#                     in_mem_file.seek(0)
+#                     upload_src(in_mem_file, "media/" + content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
 
-                    print("f_6")
-                    # title_names.append(title_name)
-                    # content_names.append(content_name)
-                    # title_text.append(ocr_agent.detect(previous_title))
-                    # content_text.append(ocr_agent.detect(blank_content))
-                    # page_number.append(index)
+#                     print("f_6")
 
-                    new_ci = ComplianceImages(
-                        proposal=proposal,
-                        title=title_name,
-                        content=content_name,
-                        title_text=ocr_agent.detect(previous_title),
-                        content_text=ocr_agent.detect(blank_content),
-                        page_number=index
-                        )
-                    print("obj")
-                    new_ci.save()
-                    print("saved")
+#                     new_ci = ComplianceImages(
+#                         proposal=pk,
+#                         title=title_name,
+#                         content=content_name,
+#                         title_text=ocr_agent.detect(previous_title),
+#                         content_text=ocr_agent.detect(blank_content),
+#                         page_number=index,
+#                         access_token=access_token
+#                         )
+#                     # print("obj")
+#                     # new_ci.save()
+#                     print("saved")
 
-                    title_count += 1
-                    filtered_proposal.update(title_count=title_count)
+#                     title_count += 1
+#                     #filtered_proposal.update(title_count=title_count)
+#                     proposal_update(pk, proposal_title, access_token, title_count=title_count)
 
-                if pred_index + 1 != len(ordered_tb_list):
-                    print("a_1")
-                    i2 = ordered_tb_list[pred_index + 1]
-                    print("a_2")
-                    title = base_img.crop((i[0]-15,i[1]-5,i[2]+15,i[3]+5))
-                    print("a_3")
-                    try:
-                        content = base_img.crop((0,i[1]-5,pix.width,i2[1]))
-                    except:
-                        content = base_img.crop((0,i[1]-5,pix.width,i[3]+5))
+#                 if pred_index + 1 != len(ordered_tb_list):
+#                     print("a_1")
+#                     i2 = ordered_tb_list[pred_index + 1]
+#                     print("a_2")
+#                     title = base_img.crop((i[0]-15,i[1]-5,i[2]+15,i[3]+5))
+#                     print("a_3")
+#                     try:
+#                         content = base_img.crop((0,i[1]-5,pix.width,i2[1]))
+#                     except:
+#                         content = base_img.crop((0,i[1]-5,pix.width,i[3]+5))
 
-                    title_name = str(pk) + "_" + str(title_count) + "_" + "title.jpg"
-                    content_name = str(pk) + "_" + str(title_count) + "_" + "content.jpg"
+#                     title_name = str(pk) + "_" + str(title_count) + "_" + "title.jpg"
+#                     content_name = str(pk) + "_" + str(title_count) + "_" + "content.jpg"
 
-                    print("a_4")
+#                     print("a_4")
 
-                    in_mem_file = io.BytesIO()
-                    title.save(in_mem_file, format="PNG")
-                    in_mem_file.seek(0)
-                    upload_src(in_mem_file, "media/" + title_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
+#                     in_mem_file = io.BytesIO()
+#                     title.save(in_mem_file, format="PNG")
+#                     in_mem_file.seek(0)
+#                     upload_src(in_mem_file, "media/" + title_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
 
-                    in_mem_file = io.BytesIO()
-                    content.save(in_mem_file, format="PNG")
-                    in_mem_file.seek(0)
-                    upload_src(in_mem_file, "media/" + content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
+#                     in_mem_file = io.BytesIO()
+#                     content.save(in_mem_file, format="PNG")
+#                     in_mem_file.seek(0)
+#                     upload_src(in_mem_file, "media/" + content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
 
-                    print("a_5")
-                    # title_names.append(title_name)
-                    # content_names.append(content_name)
-                    # title_text.append(ocr_agent.detect(title))
-                    # content_text.append(ocr_agent.detect(content))
-                    # page_number.append(index)
+#                     print("a_5")
 
-                    new_ci = ComplianceImages(
-                        proposal=proposal,
-                        title=title_name,
-                        content=content_name,
-                        title_text=ocr_agent.detect(title),
-                        content_text=ocr_agent.detect(content),
-                        page_number=index
-                        )
-                    print("obj")
-                    new_ci.save()
-                    print("saved")
+#                     new_ci = ComplianceImages(
+#                         proposal=pk,
+#                         title=title_name,
+#                         content=content_name,
+#                         title_text=ocr_agent.detect(title),
+#                         content_text=ocr_agent.detect(content),
+#                         page_number=index,
+#                         access_token=access_token
+#                         )
+#                     # print("obj")
+#                     # new_ci.save()
+#                     print("saved")
 
-                    title_count += 1
-                    filtered_proposal.update(title_count=title_count)
-                else:
-                    print("b_1")
-                    previous_title = base_img.crop((i[0]-15,i[1]-5,i[2]+15,i[3]+5))
-                    previous_content = base_img.crop((0,i[1]-5,pix.width,pix.height))
+#                     title_count += 1
+#                     #filtered_proposal.update(title_count=title_count)
+#                     proposal_update(pk, proposal_title, access_token, title_count=title_count)
+                    
+#                 else:
+#                     print("b_1")
+#                     previous_title = base_img.crop((i[0]-15,i[1]-5,i[2]+15,i[3]+5))
+#                     previous_content = base_img.crop((0,i[1]-5,pix.width,pix.height))
 
-                    in_mem_file = io.BytesIO()
-                    previous_content.save(in_mem_file, format="PNG")
-                    in_mem_file.seek(0)
-                    upload_src(in_mem_file, "media/previouscontent_" + str(pk), os.environ['AWS_STORAGE_BUCKET_NAME'])
-        else:
-            if title_count != 0:
-                print("c_1")
-                blank_content = Image.new("RGB", (pix.width, previous_content.height + pix.height), "white")
-                blank_content.paste(previous_content,(0,0))
-                blank_content.paste(base_img, (0,previous_content.height))
-                previous_content = blank_content
+#                     in_mem_file = io.BytesIO()
+#                     previous_content.save(in_mem_file, format="PNG")
+#                     in_mem_file.seek(0)
+#                     upload_src(in_mem_file, "media/previouscontent_" + str(pk), os.environ['AWS_STORAGE_BUCKET_NAME'])
+#         else:
+#             if title_count != 0:
+#                 print("c_1")
+#                 blank_content = Image.new("RGB", (pix.width, previous_content.height + pix.height), "white")
+#                 blank_content.paste(previous_content,(0,0))
+#                 blank_content.paste(base_img, (0,previous_content.height))
+#                 previous_content = blank_content
 
-                in_mem_file = io.BytesIO()
-                previous_content.save(in_mem_file, format="PNG")
-                in_mem_file.seek(0)
-                upload_src(in_mem_file, "media/previouscontent_" + str(pk), os.environ['AWS_STORAGE_BUCKET_NAME'])
+#                 in_mem_file = io.BytesIO()
+#                 previous_content.save(in_mem_file, format="PNG")
+#                 in_mem_file.seek(0)
+#                 upload_src(in_mem_file, "media/previouscontent_" + str(pk), os.environ['AWS_STORAGE_BUCKET_NAME'])
             
-        index += 1
-        filtered_proposal.update(pages_ran=(index - start_orig))
+#         index += 1
+#         #filtered_proposal.update(pages_ran=(index - start_orig))
+#         proposal_update(pk, proposal_title, access_token, pages_ran=(index - start_orig))
 
-    # ---- For end of the document -----
-    print("x_1")
-    final_content = base_img.crop((0,0,pix.width, i[1]))
-    blank_content = Image.new("RGB", (pix.width, previous_content.height + final_content.height), "white")
-    blank_content.paste(previous_content,(0,0))
-    blank_content.paste(final_content, (0,previous_content.height))
+#     # ---- For end of the document -----
+#     print("x_1")
+#     final_content = base_img.crop((0,0,pix.width, i[1]))
+#     blank_content = Image.new("RGB", (pix.width, previous_content.height + final_content.height), "white")
+#     blank_content.paste(previous_content,(0,0))
+#     blank_content.paste(final_content, (0,previous_content.height))
 
-    title_name = str(pk) + "_" + str(title_count) + "_" + "title.jpg"
-    content_name = str(pk) + "_" + str(title_count) + "_" + "content.jpg"
+#     title_name = str(pk) + "_" + str(title_count) + "_" + "title.jpg"
+#     content_name = str(pk) + "_" + str(title_count) + "_" + "content.jpg"
 
-    print("x_2")
-    in_mem_file = io.BytesIO()
-    previous_title.save(in_mem_file, format="PNG")
-    in_mem_file.seek(0)
-    upload_src(in_mem_file, "media/" + title_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
+#     print("x_2")
+#     in_mem_file = io.BytesIO()
+#     previous_title.save(in_mem_file, format="PNG")
+#     in_mem_file.seek(0)
+#     upload_src(in_mem_file, "media/" + title_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
 
-    in_mem_file = io.BytesIO()
-    blank_content.save(in_mem_file, format="PNG")
-    in_mem_file.seek(0)
-    upload_src(in_mem_file, "media/" + content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
+#     in_mem_file = io.BytesIO()
+#     blank_content.save(in_mem_file, format="PNG")
+#     in_mem_file.seek(0)
+#     upload_src(in_mem_file, "media/" + content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
 
-    # title_names.append(title_name)
-    # content_names.append(content_name)
-    # title_text.append(ocr_agent.detect(previous_title))
-    # content_text.append(ocr_agent.detect(blank_content))
-    # page_number.append(index)
 
-    new_ci = ComplianceImages(
-        proposal=proposal,
-        title=title_name,
-        content=content_name,
-        title_text=ocr_agent.detect(previous_title),
-        content_text=ocr_agent.detect(blank_content),
-        page_number=index
-        )
-    print("obj")
-    new_ci.save()
-    print("saved")
+#     new_ci = ComplianceImages(
+#         proposal=pk,
+#         title=title_name,
+#         content=content_name,
+#         title_text=ocr_agent.detect(previous_title),
+#         content_text=ocr_agent.detect(blank_content),
+#         page_number=index,
+#         access_token=access_token
+#         )
+#     # print("obj")
+#     # new_ci.save()
+#     print("saved")
 
-    # result = [title_names, content_names, title_text, content_text, page_number]
-    # index = 0
+#     #filtered_proposal.update(loading=False, pages_ran=(index - start_orig + 1))
+#     proposal_update(pk, proposal_title, access_token, loading=False, pages_ran=(index - start_orig + 1))
 
-    # for i in result[0]:
-    #     print("obj call")
-        # new_ci = ComplianceImages(
-        #     proposal=proposal,
-        #     title=(i),
-        #     content=(result[1][index]),
-        #     title_text=result[2][index],
-        #     content_text=result[3][index],
-        #     page_number=result[4][index]
-        #     )
-        # print("obj")
-        # new_ci.save()
-        # print("saved")
-        # index += 1
+#     #del Proposal #ComplianceImages
+#     gc.collect()
 
-    filtered_proposal.update(loading=False, pages_ran=(index - start_orig + 1))
-
-    del ComplianceImages, Proposal
-    gc.collect()
-
-    return "DONE"
+#     return "DONE"
 
 def splitter_tool(boxes, obj, ComplianceImages, Proposal, baseId):
     '''Takes as input (1) x box coordinates, (2) the ComplianceImage obj/image that the box coordinates reference,

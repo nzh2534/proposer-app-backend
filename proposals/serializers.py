@@ -9,6 +9,10 @@ from django.conf import settings
 
 import json
 
+from PIL import Image
+from io import BytesIO
+import base64
+
 class EventSerializer(serializers.ModelSerializer):
     class Meta:
         model = Event
@@ -44,7 +48,7 @@ class ComplianceImagesSerializer(serializers.ModelSerializer):
 
             return instance
         
-        if self.__dict__['initial_data']['process'] == "merge":
+        elif self.__dict__['initial_data']['process'] == "merge":
             obj_child = ComplianceImages.objects.filter(proposal=validated_data['proposal'], id=validated_data['id']).first()
             obj_parent = ComplianceImages.objects.filter(proposal=validated_data['proposal'], id=self.__dict__['initial_data']['parent_id']).first()
 
@@ -53,6 +57,14 @@ class ComplianceImagesSerializer(serializers.ModelSerializer):
             obj_child.delete()
 
             return obj_parent
+        
+        else:
+            validated_data['title'] = self.__dict__['initial_data']['title_pre']
+            validated_data['content'] = self.__dict__['initial_data']['content_pre']
+
+            instance = ComplianceImages.objects.create(**validated_data)
+
+            return instance
 
 class ProposalSerializer(serializers.ModelSerializer):
     event_set = EventSerializer(many=True, read_only=True)

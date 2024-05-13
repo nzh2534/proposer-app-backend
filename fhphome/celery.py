@@ -2,6 +2,10 @@ import os
 
 from celery import Celery
 
+# REMOVE IN PROD
+# from dotenv import load_dotenv
+# load_dotenv()
+
 # Set the default Django settings module for the 'celery' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'fhphome.settings')
 
