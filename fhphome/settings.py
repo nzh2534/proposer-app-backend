@@ -158,7 +158,8 @@ STATIC_URL = 'static/'
 CORS_ALLOWED_ORIGINS = [
     #os.environ['CORS_ALLOWED_ORIGINS']
     "http://localhost:3000",
-    "http://pdfmlbalancer-1287380250.us-east-2.elb.amazonaws.com"
+    "http://pdfmlbalancer-1287380250.us-east-2.elb.amazonaws.com",
+    "https://proposer.herokuapp.com"
 ]
 
 CSRF_TRUSTED_ORIGINS = [
