@@ -12,9 +12,9 @@ RUN set -ex \
     && pip install --no-cache-dir -r /app/requirements.txt \
     && pip install layoutparser
     # && pip install memray \
-    # && pip install https://download.pytorch.org/whl/cpu/torch-2.0.0%2Bcpu-cp39-cp39-linux_x86_64.whl \
-    # && pip install https://download.pytorch.org/whl/cpu/torchvision-0.15.0%2Bcpu-cp39-cp39-linux_x86_64.whl \
-    # && pip install "detectron2@git+https://github.com/facebookresearch/detectron2.git@v0.5#egg=detectron2"
+    && pip install https://download.pytorch.org/whl/cpu/torch-2.0.0%2Bcpu-cp39-cp39-linux_x86_64.whl \
+    && pip install https://download.pytorch.org/whl/cpu/torchvision-0.15.0%2Bcpu-cp39-cp39-linux_x86_64.whl \
+    && pip install "detectron2@git+https://github.com/facebookresearch/detectron2.git@v0.5#egg=detectron2"
 
 
 WORKDIR /app
