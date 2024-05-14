@@ -116,7 +116,7 @@ def image_to_inmemory_and_s3 (id, pk, img, suffix):
 #         print("Proposal Update Failed")
 #         print("Response status code:", response.status_code)
 
-def compliance_tool(file_path, pk, start_page, end_page, start_orig, media_url, start_title_count, proposal_title):
+def compliance_tool(file_path, pk, start_page, end_page, start_orig):
     from .models import Proposal, ComplianceImages
     from detectron2.config import get_cfg
     from detectron2.engine import DefaultPredictor
@@ -142,7 +142,7 @@ def compliance_tool(file_path, pk, start_page, end_page, start_orig, media_url, 
     proposal = Proposal.objects.get(pk=pk)
     filtered_proposal = Proposal.objects.filter(pk=pk)
 
-    res = requests.get(media_url + file_path)
+    res = requests.get(settings.MEDIA_URL + file_path)
     print("getting images")
     try:
         doc = fitz.open(stream=res.content, filetype="pdf")
