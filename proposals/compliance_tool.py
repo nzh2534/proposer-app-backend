@@ -260,7 +260,7 @@ def compliance_tool(file_path, pk, start_page, end_page, start_orig):
                     print("f_6")
 
                     new_ci = ComplianceImages(
-                        proposal=pk,
+                        proposal=proposal,
                         title=title_name,
                         content=content_name,
                         title_text=ocr_agent.detect(previous_title),
@@ -305,7 +305,7 @@ def compliance_tool(file_path, pk, start_page, end_page, start_orig):
                     print("a_5")
 
                     new_ci = ComplianceImages(
-                        proposal=pk,
+                        proposal=proposal,
                         title=title_name,
                         content=content_name,
                         title_text=ocr_agent.detect(title),
