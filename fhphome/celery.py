@@ -5,7 +5,7 @@ from celery import Celery
 # Set the default Django settings module for the 'celery' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'fhphome.settings')
 
-app = Celery('fhphome', broker='amqps://rmbajxqg:Hyzj3PX7R4dbeET372sTq6zyICwG_Vf0@shark.rmq.cloudamqp.com/rmbajxqg') #admin:pass@ampq
+app = Celery('fhphome', broker='INSERT YOUR BROKER') #admin:pass@ampq
 
 # Using a string here means the worker doesn't have to serialize
 # the configuration object to child processes.
