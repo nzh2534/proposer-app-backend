@@ -9,5 +9,8 @@ urlpatterns = [
     path('<int:pk>/', views.ProposalDetailAPIView.as_view(), name='proposal-detail'),
     path('<int:pk>/compliance/', views.ComplianceListCreateAPIView.as_view(), name='compliance-list'),
     path('<int:pk>/compliance/<int:id>/update/', views.ComplianceUpdateAPIView.as_view(), name='compliance-edit'),
-    path('<int:pk>/compliance/<int:id>/delete/', views.ComplianceDestroyAPIView.as_view())
+    path('<int:pk>/compliance/<int:id>/delete/', views.ComplianceDestroyAPIView.as_view()),
+    path('template/', views.TemplateListCreateAPIView.as_view(), name='template-list'),
+    path('template/<int:id>/update/', views.TemplateUpdateAPIView.as_view(), name='template-edit'),
+    path('template/<int:id>/delete/', views.TemplateDestroyAPIView.as_view())
 ]

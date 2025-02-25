@@ -1,13 +1,17 @@
 from rest_framework import serializers
-from rest_framework.reverse import reverse #make a Ex: f"/api/v2/proposals/{obk.pk}/""
+from rest_framework.reverse import reverse
 
-from .models import Proposal, Event, ComplianceImages
+from .models import Proposal, Event, ComplianceImages, Template
 from . import validators
 
-from .compliance_tool import splitter_tool
+from .compliance_tool import splitter_tool, merge_tool
 from django.conf import settings
 
 import json
+
+from PIL import Image
+from io import BytesIO
+import base64
 
 class EventSerializer(serializers.ModelSerializer):
     class Meta:
@@ -21,27 +25,47 @@ class ComplianceImagesSerializer(serializers.ModelSerializer):
         fields = ['id','proposal','title','content','title_text','content_text', 'page_number', 'flagged']
 
     def create(self, validated_data):
-        obj = ComplianceImages.objects.filter(proposal=validated_data['proposal'], id=validated_data['id']).first()
+        if self.__dict__['initial_data']['process'] == "split":
+            obj = ComplianceImages.objects.filter(proposal=validated_data['proposal'], id=validated_data['id']).first()
 
-        new_obj = splitter_tool(
-            boxes= json.loads(self.__dict__['initial_data']['boxes']),
-            obj = obj,
-            ComplianceImages=ComplianceImages,
-            Proposal=Proposal,
-            baseId = str(self.__dict__['initial_data']['baseId'])
-        )
+            new_obj = splitter_tool(
+                boxes= json.loads(self.__dict__['initial_data']['boxes']),
+                obj = obj,
+                ComplianceImages=ComplianceImages,
+                Proposal=Proposal,
+                baseId = str(self.__dict__['initial_data']['baseId'])
+            )
 
-        validated_data['title'] = new_obj['title']
-        validated_data['title_text'] = new_obj['title_text']
-        validated_data['content'] = new_obj['content']
-        validated_data['content_text'] = new_obj['content_text']
-        validated_data['page_number'] = obj.__dict__['page_number']
+            validated_data['title'] = new_obj['title']
+            validated_data['title_text'] = new_obj['title_text']
+            validated_data['content'] = new_obj['content']
+            validated_data['content_text'] = new_obj['content_text']
+            validated_data['page_number'] = obj.__dict__['page_number']
 
-        obj.delete()
+            obj.delete()
 
-        instance = super().create(validated_data)
+            instance = super().create(validated_data)
 
-        return instance
+            return instance
+        
+        elif self.__dict__['initial_data']['process'] == "merge":
+            obj_child = ComplianceImages.objects.filter(proposal=validated_data['proposal'], id=validated_data['id']).first()
+            obj_parent = ComplianceImages.objects.filter(proposal=validated_data['proposal'], id=self.__dict__['initial_data']['parent_id']).first()
+
+            merge_tool(str(obj_parent.content.file), str(obj_child.content.file), self.__dict__['initial_data']['hierarchy'], self.__dict__['initial_data']['proposal'])
+
+            obj_child.delete()
+
+            return obj_parent
+        
+        else:
+            validated_data['title'] = self.__dict__['initial_data']['title_pre']
+            validated_data['content'] = self.__dict__['initial_data']['content_pre']
+
+            instance = ComplianceImages.objects.create(**validated_data)
+
+            return instance
+
 
 class ProposalSerializer(serializers.ModelSerializer):
     event_set = EventSerializer(many=True, read_only=True)
@@ -74,7 +98,12 @@ class ProposalSerializer(serializers.ModelSerializer):
             'proposal_link',
             'proposal_id',
             'checklist',
-            'toc'
+            'doc_start',
+            'doc_end',
+            'pages_ran',
+            'loading',
+            'loading_checklist',
+            'title_count'
         ]
 
     def get_edit_url(self, obj):
@@ -101,3 +130,12 @@ class ProposalSerializer(serializers.ModelSerializer):
             return proposal
 
     #Need to add in update fxn https://django.cowhite.com/blog/create-and-update-django-rest-framework-nested-serializers/
+        
+class TemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Template
+        fields = [
+            'name',
+            'checklist',
+            'id'
+        ]

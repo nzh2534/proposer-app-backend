@@ -2,10 +2,14 @@ import os
 
 from celery import Celery
 
+# REMOVE IN PROD
+# from dotenv import load_dotenv
+# load_dotenv()
+
 # Set the default Django settings module for the 'celery' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'fhphome.settings')
 
-app = Celery('fhphome', broker='INSERT YOUR BROKER') #admin:pass@ampq
+app = Celery('fhphome', broker=os.environ['BROKER_URL']) #admin:pass@ampq
 
 # Using a string here means the worker doesn't have to serialize
 # the configuration object to child processes.

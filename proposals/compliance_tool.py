@@ -7,8 +7,13 @@ import os
 import gc
 import io
 import requests
+import json
 
 from botocore.exceptions import ClientError
+
+# # REMOVE IN PROD
+# from dotenv import load_dotenv
+# load_dotenv()
 
 # -- Only needed for Detectron2 testing/logs
 # from detectron2.utils.logger import setup_logger
@@ -61,21 +66,83 @@ def image_to_inmemory_and_s3 (id, pk, img, suffix):
     upload_src(in_mem_file, "media/" + new_file_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
     return new_file_name
 
-def compliance_tool(file_path, pk, toc_page, proposal):
-    from .models import ComplianceImages
+
+# def ComplianceImages(proposal, title, content, title_text, content_text, page_number, access_token):
+#     '''
+#     proposal=proposal,
+#     title=title_name,
+#     content=content_name,
+#     title_text=ocr_agent.detect(title),
+#     content_text=ocr_agent.detect(content),
+#     page_number=index
+#     '''
+#     data = {
+#         "proposal" : proposal,
+#         "title_pre": title,
+#         "content_pre": content,
+#         "title_text": title_text,
+#         "content_text": content_text,
+#         "page_number": page_number,
+#         "process": "None"
+#     }
+
+#     headers = {"Authorization": 'JWT ' + access_token}
+#     response = requests.post(f'http://localhost:8000/api/proposals/{proposal}/compliance/', data=data, headers=headers)
+
+#     if response.status_code == 201:
+#         print("New instance of ChildModel created successfully!")
+#         print("New object ID:", response.json()['id'])
+#     else:
+#         print("Failed to create new instance of ChildModel.")
+#         print("Response status code:", response.status_code)
+#         #print("Response content:", response.content)
+
+# def proposal_update(pk, title, access_token, *args, **kwargs):
+
+#     data = {
+#         "proposal" : pk,
+#         "title": title
+#     }
+
+#     for key, value in kwargs.items():
+#         data[key] = value
+
+#     headers = {"Authorization": 'JWT ' + access_token}
+#     response = requests.put(f'http://localhost:8000/api/proposals/{pk}/update/', data=data, headers=headers)
+
+#     if response.status_code == 200:
+#         print("Proposal updated")
+#     else:
+#         print("Proposal Update Failed")
+#         print("Response status code:", response.status_code)
+
+def compliance_tool(file_path, pk, start_page, end_page, start_orig):
+    from .models import Proposal, ComplianceImages
     from detectron2.config import get_cfg
     from detectron2.engine import DefaultPredictor
     from detectron2 import model_zoo
+
+    # access_res = requests.post(
+    #     f'http://localhost:8000/api/token/', 
+    #     data=json.dumps({"username": os.environ['LAMBDA_USER'], "password": os.environ['LAMBDA_PASS']}), 
+    #     headers={'Content-Type': 'application/json'}
+    #     )
+    # access_token = access_res.json()['access']
+
+
     cfg = get_cfg()
     cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))
     cfg.MODEL.DEVICE = "cpu"
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.3 # Set threshold for this model
-    cfg.MODEL.WEIGHTS = os.environ['AWS_MODEL_PATH'] # Set path model .pth
+    cfg.MODEL.WEIGHTS = os.environ['AWS_MODEL_PATH']
+
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
     print("loading model")
     predictor = DefaultPredictor(cfg)
     ocr_agent = ocr.TesseractAgent(languages='eng')
     print("model loaded")
+    proposal = Proposal.objects.get(pk=pk)
+    filtered_proposal = Proposal.objects.filter(pk=pk)
 
     res = requests.get(settings.MEDIA_URL + file_path)
     print("getting images")
@@ -88,23 +155,27 @@ def compliance_tool(file_path, pk, toc_page, proposal):
     del file_path
     gc.collect()
 
-    index = toc_page
+    index = start_page
 
-    pages = int(os.environ['PAGE_COUNT'])
-    if pages == 0:
-        pages = doc.page_count
+    if end_page > doc.page_count:
+        end_page = doc.page_count
+        filtered_proposal.update(doc_end=end_page)
+        #proposal_update(pk, proposal_title, access_token, doc_end=end_page)
+
+    pages = end_page
 
     zoom_x = 1.5
     zoom_y = 1.5
     mat = fitz.Matrix(zoom_x, zoom_y)
 
-    previous_content = 0
-    title_count = 0
-    title_names = [] 
-    content_names = [] 
-    title_text = []
-    content_text = []
-    page_number = []
+    try:
+        data = requests.get(settings.MEDIA_URL + 'previouscontent_' + pk).content
+        previous_content = Image.open(io.BytesIO(data))
+    except:
+        previous_content = 0
+
+    title_count = proposal.title_count
+
     while index < pages:
         print(index)
         pix = doc.load_page(index).get_pixmap(matrix=mat)
@@ -137,12 +208,15 @@ def compliance_tool(file_path, pk, toc_page, proposal):
             for l2 in lines_list:
                 if lines_list.index(l2) != line_num: 
                     if check > l2[1] and check < l2[3]:
-                        if score > scores_list[lines_list.index(l2)]:
-                            lines_list.remove(l2)
-                            print("deleted an overlap")
-                        else:
-                            lines_list.remove(l)
-                            print("deleted an overlap")
+                        try:
+                            if score > scores_list[lines_list.index(l2)]:
+                                lines_list.remove(l2)
+                                print("deleted an overlap")
+                            else:
+                                lines_list.remove(l)
+                                print("deleted an overlap")
+                        except Exception as e:
+                            print(e)
             line_num += 1
         
         for i in lines_list:
@@ -185,13 +259,23 @@ def compliance_tool(file_path, pk, toc_page, proposal):
                     upload_src(in_mem_file, "media/" + content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
 
                     print("f_6")
-                    title_names.append(title_name)
-                    content_names.append(content_name)
-                    title_text.append(ocr_agent.detect(previous_title))
-                    content_text.append(ocr_agent.detect(blank_content))
-                    page_number.append(index)
+
+                    new_ci = ComplianceImages(
+                        proposal=proposal,
+                        title=title_name,
+                        content=content_name,
+                        title_text=ocr_agent.detect(previous_title),
+                        content_text=ocr_agent.detect(blank_content),
+                        page_number=index
+                        #access_token=access_token
+                        )
+                    print("obj")
+                    new_ci.save()
+                    print("saved")
 
                     title_count += 1
+                    filtered_proposal.update(title_count=title_count)
+                    #proposal_update(pk, proposal_title, access_token, title_count=title_count)
 
                 if pred_index + 1 != len(ordered_tb_list):
                     print("a_1")
@@ -220,17 +304,33 @@ def compliance_tool(file_path, pk, toc_page, proposal):
                     upload_src(in_mem_file, "media/" + content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
 
                     print("a_5")
-                    title_names.append(title_name)
-                    content_names.append(content_name)
-                    title_text.append(ocr_agent.detect(title))
-                    content_text.append(ocr_agent.detect(content))
-                    page_number.append(index)
+
+                    new_ci = ComplianceImages(
+                        proposal=proposal,
+                        title=title_name,
+                        content=content_name,
+                        title_text=ocr_agent.detect(title),
+                        content_text=ocr_agent.detect(content),
+                        page_number=index
+                        #access_token=access_token
+                        )
+                    print("obj")
+                    new_ci.save()
+                    print("saved")
 
                     title_count += 1
+                    filtered_proposal.update(title_count=title_count)
+                    #proposal_update(pk, proposal_title, access_token, title_count=title_count)
+                    
                 else:
                     print("b_1")
                     previous_title = base_img.crop((i[0]-15,i[1]-5,i[2]+15,i[3]+5))
                     previous_content = base_img.crop((0,i[1]-5,pix.width,pix.height))
+
+                    in_mem_file = io.BytesIO()
+                    previous_content.save(in_mem_file, format="PNG")
+                    in_mem_file.seek(0)
+                    upload_src(in_mem_file, "media/previouscontent_" + str(pk), os.environ['AWS_STORAGE_BUCKET_NAME'])
         else:
             if title_count != 0:
                 print("c_1")
@@ -238,12 +338,19 @@ def compliance_tool(file_path, pk, toc_page, proposal):
                 blank_content.paste(previous_content,(0,0))
                 blank_content.paste(base_img, (0,previous_content.height))
                 previous_content = blank_content
+
+                in_mem_file = io.BytesIO()
+                previous_content.save(in_mem_file, format="PNG")
+                in_mem_file.seek(0)
+                upload_src(in_mem_file, "media/previouscontent_" + str(pk), os.environ['AWS_STORAGE_BUCKET_NAME'])
             
         index += 1
+        filtered_proposal.update(pages_ran=(index - start_orig))
+        #proposal_update(pk, proposal_title, access_token, pages_ran=(index - start_orig))
 
     # ---- For end of the document -----
     print("x_1")
-    final_content = base_img.crop((0,0,pix.width,i[1]))
+    final_content = base_img.crop((0,0,pix.width, i[1]))
     blank_content = Image.new("RGB", (pix.width, previous_content.height + final_content.height), "white")
     blank_content.paste(previous_content,(0,0))
     blank_content.paste(final_content, (0,previous_content.height))
@@ -262,31 +369,25 @@ def compliance_tool(file_path, pk, toc_page, proposal):
     in_mem_file.seek(0)
     upload_src(in_mem_file, "media/" + content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
 
-    title_names.append(title_name)
-    content_names.append(content_name)
-    title_text.append(ocr_agent.detect(previous_title))
-    content_text.append(ocr_agent.detect(blank_content))
-    page_number.append(index)
 
-    result = [title_names, content_names, title_text, content_text, page_number]
-    index = 0
+    new_ci = ComplianceImages(
+        proposal=proposal,
+        title=title_name,
+        content=content_name,
+        title_text=ocr_agent.detect(previous_title),
+        content_text=ocr_agent.detect(blank_content),
+        page_number=index
+        #access_token=access_token
+        )
+    print("obj")
+    new_ci.save()
+    print("saved")
 
-    for i in result[0]:
-        print("obj call")
-        new_ci = ComplianceImages(
-            proposal=proposal,
-            title=(i),
-            content=(result[1][index]),
-            title_text=result[2][index],
-            content_text=result[3][index],
-            page_number=result[4][index]
-            )
-        print("obj")
-        new_ci.save()
-        print("saved")
-        index += 1
+    filtered_proposal.update(loading=False, pages_ran=(index - start_orig + 1))
+    #proposal_update(pk, proposal_title, access_token, loading=False, pages_ran=(index - start_orig + 1))
 
-    del result, title_names, content_names, title_text, content_text, page_number, Proposal, ComplianceImages
+    del Proposal, ComplianceImages
+
     gc.collect()
 
     return "DONE"
@@ -373,3 +474,216 @@ def splitter_tool(boxes, obj, ComplianceImages, Proposal, baseId):
         "content_text": updated_content_text, 
         "title": new_title_name, 
         "content": new_content_name}
+
+def merge_tool(url1, url2, content_id, pk):
+    # Download images from URLs
+
+    url1 = settings.MEDIA_URL + url1
+    url2 = settings.MEDIA_URL + url2
+
+    image1 = Image.open(io.BytesIO(requests.get(url1).content))
+    image2 = Image.open(io.BytesIO(requests.get(url2).content))
+
+    # Ensure images have the same width
+    width = max(image1.width, image2.width)
+    image1 = image1.resize((width, int(image1.height * (width / image1.width))))
+    image2 = image2.resize((width, int(image2.height * (width / image2.width))))
+
+    # Create a new image with doubled height
+    merged_image = Image.new('RGB', (width, image1.height + image2.height))
+
+    # Paste the images vertically
+    merged_image.paste(image1, (0, 0))
+    merged_image.paste(image2, (0, image1.height))
+
+    content_name = str(pk) + "_" + str(content_id) + "_" + "content.jpg"
+
+    in_mem_file = io.BytesIO()
+    merged_image.save(in_mem_file, format="PNG")
+    in_mem_file.seek(0)
+    upload_src(in_mem_file, "media/" + content_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
+
+    return merged_image
+
+
+def langchain_api(url, template, pk, aitype=os.environ['AI_TYPE']):
+    if aitype == "OpenAI":
+        from langchain.embeddings.openai import OpenAIEmbeddings
+        from langchain.chains import ConversationalRetrievalChain
+        from langchain.chat_models import ChatOpenAI
+        from langchain.document_loaders import PyPDFLoader
+        from langchain_core.prompts import PromptTemplate
+        from tempfile import NamedTemporaryFile
+        from langchain.vectorstores.pinecone import Pinecone as PineconeStore
+        from pinecone import Pinecone
+        import time
+        print("starting langchain")
+        from .models import Proposal
+        Proposal.objects.filter(pk=pk).update(loading_checklist=True)
+        response = requests.get(settings.MEDIA_URL + url)
+        mem_obj = io.BytesIO(response.content)
+
+        print("doc in mem")
+
+        bytes_data = mem_obj.read()
+        with NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(bytes_data)                     
+            loader = PyPDFLoader(tmp.name).load()
+
+        print("doc loader")
+
+        os.remove(tmp.name)
+        embeddings = OpenAIEmbeddings()
+
+        print("embeddings loaded")
+
+        pc = Pinecone(api_key=os.environ['PINECONE_API_KEY'])
+        index_name = os.environ['PINECONE_INDEX']
+        index = pc.Index(index_name)
+
+        print("index found")
+        
+        pdfsearch = PineconeStore.from_documents(loader, embeddings, index_name=index_name)
+
+        while index.describe_index_stats()['total_vector_count'] < len(loader):
+            print(index.describe_index_stats()['total_vector_count'])
+            print("sleeping")
+            time.sleep(5)
+            print("slept")
+
+        temp = ''' 
+        You are a helpful AI bot that answers questions for a user.
+        The following is a set of context and a question that will relate to the context.
+        #CONTEXT
+        {context}
+        #ENDCONTEXT
+
+        #QUESTION
+        {question} Don’t give information outside the document. If the information is not available in the context respond UNABLE TO FIND BASED ON THE PROMPT.
+        '''
+        
+        prompt = PromptTemplate(
+                    template=temp, 
+                    input_variables=["context", "chat_history", "question"])
+
+        chain = ConversationalRetrievalChain.from_llm(ChatOpenAI(temperature=0.1), 
+                                                        retriever=
+                                                        pdfsearch.as_retriever(search_kwargs={"k": 1}),
+                                                        return_source_documents=True,
+                                                        combine_docs_chain_kwargs={"prompt": prompt})
+        
+        print("chain retrieved")
+        chat_history = []
+        for i in template:
+            print(i['prompt'])
+            query = i['prompt']
+            try:
+                result = chain({"question": query, 'chat_history':chat_history}, return_only_outputs=True)
+                chat_history += [(query, result["answer"])]
+                i['data'] = result["answer"]
+                i['page'] = list(result['source_documents'][0])[1][1]['page']
+            except Exception as e:
+                print(e)
+                continue
+
+        Proposal.objects.filter(pk=pk).update(checklist=template, loading_checklist=False)
+        index.delete(delete_all=True)
+        
+        return "DONE"
+    
+    if aitype == "HuggingFace":
+        from langchain.embeddings.huggingface_hub import HuggingFaceHubEmbeddings
+        from langchain.llms.huggingface_hub import HuggingFaceHub
+        from langchain.chains import ConversationalRetrievalChain
+        from langchain_core.prompts import PromptTemplate
+        from langchain.document_loaders import PyPDFLoader
+        from tempfile import NamedTemporaryFile
+        from langchain.vectorstores.pinecone import Pinecone as PineconeStore
+        from pinecone import Pinecone
+        import time
+        print("starting langchain")
+        from .models import Proposal
+        Proposal.objects.filter(pk=pk).update(loading_checklist=True)
+        response = requests.get(settings.MEDIA_URL + url)
+        mem_obj = io.BytesIO(response.content)
+
+        print("doc in mem")
+
+        bytes_data = mem_obj.read()
+        with NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(bytes_data)                     
+            loader = PyPDFLoader(tmp.name).load()
+
+        print("doc loader")
+
+        os.remove(tmp.name)
+        embeddings = HuggingFaceHubEmbeddings()
+
+        llm = HuggingFaceHub(
+            repo_id="HuggingFaceH4/zephyr-7b-beta",
+            task="text-generation",
+            model_kwargs={
+                "max_new_tokens": 512,
+                "top_k": 30,
+                "temperature": 0.1,
+                "repetition_penalty": 1.03,
+            },
+        )
+
+        print("embeddings loaded")
+
+        pc = Pinecone(api_key=os.environ['PINECONE_API_KEY'])
+        index_name = os.environ['PINECONE_INDEX2']
+        index = pc.Index(index_name)
+
+        print("index found")
+        
+        pdfsearch = PineconeStore.from_documents(loader, embeddings, index_name=index_name)
+
+        while index.describe_index_stats()['total_vector_count'] < len(loader):
+            print(index.describe_index_stats()['total_vector_count'])
+            print("sleeping")
+            time.sleep(5)
+            print("slept")
+
+        temp = ''' 
+        You are a helpful AI bot that answers questions for a user.
+        The following is a set of context and a question that will relate to the context.
+        #CONTEXT
+        {context}
+        #ENDCONTEXT
+
+        #QUESTION
+        {question} Don’t give information outside the document. If the information is not available in the context respond UNABLE TO FIND BASED ON THE PROMPT.
+        '''
+        
+        prompt = PromptTemplate(
+                    template=temp, 
+                    input_variables=["context", "chat_history", "question"])
+
+
+        chain = ConversationalRetrievalChain.from_llm(llm=llm, 
+                                                        retriever=
+                                                        pdfsearch.as_retriever(search_kwargs={"k": 1}),
+                                                        return_source_documents=True,
+                                                        combine_docs_chain_kwargs={"prompt": prompt})
+        
+        print("chain retrieved")
+        chat_history = []
+        for i in template:
+            print(i['prompt'])
+            query = i['prompt']
+            try:
+                result = chain({"question": query, 'chat_history':chat_history}, return_only_outputs=True)
+                chat_history += [(query, result["answer"])]
+                i['data'] = result["answer"]
+                i['page'] = list(result['source_documents'][0])[1][1]['page']
+            except Exception as e:
+                print(e)
+                continue
+
+        Proposal.objects.filter(pk=pk).update(checklist=template, loading_checklist=False)
+        index.delete(delete_all=True)
+        
+        return "DONE"
+
