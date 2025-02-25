@@ -129,11 +129,13 @@ def compliance_tool(file_path, pk, start_page, end_page, start_orig):
     #     )
     # access_token = access_res.json()['access']
 
+
     cfg = get_cfg()
     cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))
     cfg.MODEL.DEVICE = "cpu"
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.3 # Set threshold for this model
     cfg.MODEL.WEIGHTS = os.environ['AWS_MODEL_PATH']
+
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
     print("loading model")
     predictor = DefaultPredictor(cfg)
@@ -149,7 +151,6 @@ def compliance_tool(file_path, pk, start_page, end_page, start_orig):
     except Exception as e:
         print(e)
         doc = fitz.open(stream=res.content.read(), filetype="pdf")
-
 
     del file_path
     gc.collect()
@@ -386,6 +387,7 @@ def compliance_tool(file_path, pk, start_page, end_page, start_orig):
     #proposal_update(pk, proposal_title, access_token, loading=False, pages_ran=(index - start_orig + 1))
 
     del Proposal, ComplianceImages
+
     gc.collect()
 
     return "DONE"
@@ -684,3 +686,4 @@ def langchain_api(url, template, pk, aitype=os.environ['AI_TYPE']):
         index.delete(delete_all=True)
         
         return "DONE"
+

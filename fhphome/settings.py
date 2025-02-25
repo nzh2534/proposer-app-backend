@@ -15,6 +15,8 @@ from datetime import timedelta
 import os
 from dotenv import load_dotenv, find_dotenv
 
+
+
 # from storages.backends.s3boto3 import S3Boto3Storage
 
 import dj_database_url
@@ -74,6 +76,8 @@ INSTALLED_APPS = [
     'drf_yasg',
     'storages',
     'celery'
+
+
 ]
 
 MIDDLEWARE = [
@@ -114,11 +118,13 @@ DATABASES = {
     }
 }
 
+
 if os.environ['TESTING'] != 'True':
     db_from_env = dj_database_url.config(conn_max_age=600)
     DATABASES['default'].update(db_from_env)
 
 CELERY_BROKER_POOL_LIMIT = None
+
 
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
@@ -150,6 +156,8 @@ USE_I18N = True
 
 USE_TZ = True
 
+
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
 
@@ -161,6 +169,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://pdfmlbalancer-1287380250.us-east-2.elb.amazonaws.com",
     "https://proposer.herokuapp.com"
 ]
+
 
 CSRF_TRUSTED_ORIGINS = [
     os.environ['CSRF_TRUSTED_ORIGINS']

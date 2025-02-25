@@ -66,6 +66,7 @@ class ComplianceImagesSerializer(serializers.ModelSerializer):
 
             return instance
 
+
 class ProposalSerializer(serializers.ModelSerializer):
     event_set = EventSerializer(many=True, read_only=True)
     complianceimages_set = ComplianceImagesSerializer(many=True, read_only=True) #note: needs exact name for set in serializer
