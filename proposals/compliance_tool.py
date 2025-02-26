@@ -66,69 +66,11 @@ def image_to_inmemory_and_s3 (id, pk, img, suffix):
     upload_src(in_mem_file, "media/" + new_file_name, os.environ['AWS_STORAGE_BUCKET_NAME'])
     return new_file_name
 
-
-# def ComplianceImages(proposal, title, content, title_text, content_text, page_number, access_token):
-#     '''
-#     proposal=proposal,
-#     title=title_name,
-#     content=content_name,
-#     title_text=ocr_agent.detect(title),
-#     content_text=ocr_agent.detect(content),
-#     page_number=index
-#     '''
-#     data = {
-#         "proposal" : proposal,
-#         "title_pre": title,
-#         "content_pre": content,
-#         "title_text": title_text,
-#         "content_text": content_text,
-#         "page_number": page_number,
-#         "process": "None"
-#     }
-
-#     headers = {"Authorization": 'JWT ' + access_token}
-#     response = requests.post(f'http://localhost:8000/api/proposals/{proposal}/compliance/', data=data, headers=headers)
-
-#     if response.status_code == 201:
-#         print("New instance of ChildModel created successfully!")
-#         print("New object ID:", response.json()['id'])
-#     else:
-#         print("Failed to create new instance of ChildModel.")
-#         print("Response status code:", response.status_code)
-#         #print("Response content:", response.content)
-
-# def proposal_update(pk, title, access_token, *args, **kwargs):
-
-#     data = {
-#         "proposal" : pk,
-#         "title": title
-#     }
-
-#     for key, value in kwargs.items():
-#         data[key] = value
-
-#     headers = {"Authorization": 'JWT ' + access_token}
-#     response = requests.put(f'http://localhost:8000/api/proposals/{pk}/update/', data=data, headers=headers)
-
-#     if response.status_code == 200:
-#         print("Proposal updated")
-#     else:
-#         print("Proposal Update Failed")
-#         print("Response status code:", response.status_code)
-
 def compliance_tool(file_path, pk, start_page, end_page, start_orig):
     from .models import Proposal, ComplianceImages
     from detectron2.config import get_cfg
     from detectron2.engine import DefaultPredictor
     from detectron2 import model_zoo
-
-    # access_res = requests.post(
-    #     f'http://localhost:8000/api/token/', 
-    #     data=json.dumps({"username": os.environ['LAMBDA_USER'], "password": os.environ['LAMBDA_PASS']}), 
-    #     headers={'Content-Type': 'application/json'}
-    #     )
-    # access_token = access_res.json()['access']
-
 
     cfg = get_cfg()
     cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))
