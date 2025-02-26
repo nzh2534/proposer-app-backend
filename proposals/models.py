@@ -187,17 +187,6 @@ def user_created_handler(sender, instance, *args, **kwargs):
         if os.environ['TESTING'] != 'True':
             if len(list(instance.complianceimages_set.all())) == 0:
                 transaction.on_commit(lambda: compliance_task.delay(str(instance.nofo.file), instance.pk, instance.doc_start, instance.doc_end))
-                # data = {
-                #     "nofo" : str(instance.nofo.file),
-                #     "pk": instance.pk,
-                #     "doc_start": instance.doc_start,
-                #     "doc_end": instance.doc_end,
-                #     "media_url": settings.MEDIA_URL,
-                #     "title_count": instance.title_count,
-                #     "title": instance.title
-                # }
-
-                # response = requests.post(f'http://pdfmlbalancer-1287380250.us-east-2.elb.amazonaws.com/compliance_tool', json=data)
                 print(instance.checklist)
                 print(instance.checklist[0]['prompt'])
                 if len(instance.checklist[0]['prompt']) > 0:
