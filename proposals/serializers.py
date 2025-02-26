@@ -118,18 +118,12 @@ class ProposalSerializer(serializers.ModelSerializer):
         print("create\n\n")
         try:
             events_data = validated_data.pop('event_set')
-            # complianceimages_data = validated_data.pop('complianceimages_set')
             proposal = Proposal.objects.create(**validated_data)
             for event_data in events_data:
                 Event.objects.create(proposal=proposal, **event_data)
-            # for complianceimage_data in complianceimages_data:
-            #     ComplianceImages.objects.create(proposal=proposal, **complianceimage_data)
-            # return proposal
         except:
             proposal = Proposal.objects.create(**validated_data)
             return proposal
-
-    #Need to add in update fxn https://django.cowhite.com/blog/create-and-update-django-rest-framework-nested-serializers/
         
 class TemplateSerializer(serializers.ModelSerializer):
     class Meta:
