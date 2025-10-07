@@ -9,4 +9,4 @@ This repository contains the open source backend of the **Proposer** application
 
 ## Related Projects
 
-- 🔗 [React Frontend for the Proposer App](https://github.com/nzh2534/proposer-app-backend)
+- 🔗 [React Frontend for the Proposer App](https://github.com/nzh2534/proposer-frontend)
